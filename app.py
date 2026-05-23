@@ -80,10 +80,9 @@ def recommend_books(title, top_n=10):
 # -----------------------------
 menu = st.sidebar.radio(
     'Navigation',
-    [
+    [   'Insights Dashboard',
         'Book Recommendations',
-        'Trending Books',
-        'Insights Dashboard'
+        'Trending Books'
     ]
 )
 
@@ -123,32 +122,136 @@ if menu == 'Trending Books':
 if menu == 'Insights Dashboard':
 
     st.header('Book Insights Overview')
-    col1, col2, col3 = st.columns(3)
 
-    # ---------------- TOP BOOKS ----------------
+    # =====================================================
+    # TOP BOOKS LIST
+    # =====================================================
+    st.subheader('Most Popular Books')
+
     top_books = books['book_title'].value_counts().head(10)
-    col1.subheader('Most Popular Books')
-    col1.bar_chart(top_books)
+
+    top_books_df = top_books.reset_index()
+    top_books_df.columns = ['Book Title', 'Reader Count']
+
+    st.dataframe(top_books_df, use_container_width=True)
 
 
-    # ---------------- CATEGORIES ----------------
+    # =====================================================
+    # SORTED GENRE + AUTHOR CHARTS
+    # =====================================================
+    col1, col2 = st.columns(2)
+
+    # ---------------- CATEGORIES / GENRES ----------------
     cats = books[['categories']].dropna().copy()
+
     cats['categories'] = cats['categories'].astype(str)
+
     cats['categories'] = cats['categories'].str.replace('[', '', regex=False)
     cats['categories'] = cats['categories'].str.replace(']', '', regex=False)
     cats['categories'] = cats['categories'].str.replace("'", '', regex=False)
+
     cats['categories'] = cats['categories'].str.split(',')
+
     cats = cats.explode('categories')
+
     cats['categories'] = cats['categories'].str.strip()
+
     cats = cats[cats['categories'] != '']
 
-    # count categories
-    top_categories = cats['categories'].value_counts().head(10)
-    col2.subheader('Top Categories')
-    col2.bar_chart(top_categories)
+    # remove generic Books category
+    cats = cats[cats['categories'].str.lower() != 'books']
+
+    # sorted top categories
+    top_categories = (
+        cats['categories']
+        .value_counts()
+        .sort_values(ascending=True)
+        .tail(10)
+    )
+
+    col1.subheader('Top Genres / Categories')
+    col1.bar_chart(top_categories)
 
 
     # ---------------- AUTHORS ----------------
-    top_authors = trending['author'].value_counts().head(10)
-    col3.subheader('Top Authors')
-    col3.bar_chart(top_authors)
+    top_authors = (
+        books['store']
+        .value_counts()
+        .sort_values(ascending=True)
+        .tail(10)
+    )
+
+    col2.subheader('Top Authors')
+    col2.bar_chart(top_authors)
+
+
+    # =====================================================
+    # SALES / ENGAGEMENT OVER TIME
+    # =====================================================
+    st.subheader('Top Genre Engagement Over Time')
+
+    # prepare dates
+    books['timestamp'] = pd.to_datetime(books['timestamp'])
+
+    # get top 5 genres
+    top5_genres = (
+        cats['categories']
+        .value_counts()
+        .head(5)
+        .index
+    )
+
+    # rebuild dataset with exploded categories
+    trend_df = books[['timestamp', 'categories']].dropna().copy()
+
+    trend_df['categories'] = trend_df['categories'].astype(str)
+
+    trend_df['categories'] = trend_df['categories'].str.replace('[', '', regex=False)
+    trend_df['categories'] = trend_df['categories'].str.replace(']', '', regex=False)
+    trend_df['categories'] = trend_df['categories'].str.replace("'", '', regex=False)
+
+    trend_df['categories'] = trend_df['categories'].str.split(',')
+
+    trend_df = trend_df.explode('categories')
+
+    trend_df['categories'] = trend_df['categories'].str.strip()
+
+    trend_df = trend_df[
+        trend_df['categories'].isin(top5_genres)
+    ]
+
+    # =====================================================
+    # DATE RANGE FILTER
+    # =====================================================
+    min_date = trend_df['timestamp'].min().date()
+    max_date = trend_df['timestamp'].max().date()
+
+    date_range = st.slider(
+        'Select Time Period',
+        min_value=min_date,
+        max_value=max_date,
+        value=(min_date, max_date)
+    )
+
+    start_date, end_date = date_range
+
+    filtered_trend = trend_df[
+        (trend_df['timestamp'].dt.date >= start_date) &
+        (trend_df['timestamp'].dt.date <= end_date)
+    ]
+
+    # monthly aggregation
+    filtered_trend['month'] = (
+        filtered_trend['timestamp']
+        .dt.to_period('M')
+        .astype(str)
+    )
+
+    genre_time = (
+        filtered_trend
+        .groupby(['month', 'categories'])
+        .size()
+        .unstack(fill_value=0)
+    )
+
+    st.line_chart(genre_time)
