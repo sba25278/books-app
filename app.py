@@ -123,20 +123,32 @@ if menu == 'Trending Books':
 if menu == 'Insights Dashboard':
 
     st.header('Book Insights Overview')
-
     col1, col2, col3 = st.columns(3)
 
-    # Top books
-    top_books = trending['book title'].value_counts().head(10)
+    # ---------------- TOP BOOKS ----------------
+    top_books = books['book_title'].value_counts().head(10)
     col1.subheader('Most Popular Books')
     col1.bar_chart(top_books)
 
-    # Genres
-    top_genres = trending['genre'].value_counts().head(10)
-    col2.subheader('Top Genres')
-    col2.bar_chart(top_genres)
 
-    # Authors
+    # ---------------- CATEGORIES ----------------
+    cats = books[['categories']].dropna().copy()
+    cats['categories'] = cats['categories'].astype(str)
+    cats['categories'] = cats['categories'].str.replace('[', '', regex=False)
+    cats['categories'] = cats['categories'].str.replace(']', '', regex=False)
+    cats['categories'] = cats['categories'].str.replace("'", '', regex=False)
+    cats['categories'] = cats['categories'].str.split(',')
+    cats = cats.explode('categories')
+    cats['categories'] = cats['categories'].str.strip()
+    cats = cats[cats['categories'] != '']
+
+    # count categories
+    top_categories = cats['categories'].value_counts().head(10)
+    col2.subheader('Top Categories')
+    col2.bar_chart(top_categories)
+
+
+    # ---------------- AUTHORS ----------------
     top_authors = trending['author'].value_counts().head(10)
     col3.subheader('Top Authors')
     col3.bar_chart(top_authors)
