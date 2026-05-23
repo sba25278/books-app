@@ -7,14 +7,45 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 
 # -----------------------------
-# PAGE SETUP
+# PAGE SETUP (SENIOR FRIENDLY)
 # -----------------------------
 st.set_page_config(
     page_title='Book Discovery Platform',
     layout='wide'
 )
 
+# warm background styling
+st.markdown(
+    """
+    <style>
+    .stApp {
+        background-color: #fbf6ef;
+        font-size: 20px;
+    }
+
+    h1, h2, h3 {
+        color: #5a3e2b;
+    }
+
+    div.stButton > button {
+        background-color: #c97b63;
+        color: white;
+        font-size: 20px;
+        padding: 12px;
+        border-radius: 12px;
+    }
+
+    div.stButton > button:hover {
+        background-color: #a65c45;
+        color: white;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 st.title('Book Discovery Platform')
+st.write('A simple way to explore books, recommendations, and trends')
 
 
 # -----------------------------
@@ -31,14 +62,12 @@ books, trending = load_data()
 
 
 # -----------------------------
-# CONTENT MODEL (LIGHTWEIGHT)
+# CONTENT MODEL
 # -----------------------------
 @st.cache_data
 def build_content_model(df):
 
     df = df.dropna(subset=['content', 'book_title']).copy()
-
-    # reduce size for stability
     df = df.sample(min(5000, len(df)), random_state=42)
 
     tfidf = TfidfVectorizer(stop_words='english', max_features=2000)
@@ -76,32 +105,47 @@ def recommend_books(title, top_n=10):
 
 
 # -----------------------------
-# SIDEBAR NAVIGATION
+# SIMPLE NAVIGATION (BIG BUTTONS)
 # -----------------------------
-menu = st.sidebar.radio(
-    'Navigation',
-    [   'Insights Dashboard',
-        'Book Recommendations',
-        'Trending Books'
-    ]
-)
+st.markdown("## Choose an option")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    rec_btn = st.button("📚 Find Similar Books")
+
+with col2:
+    trend_btn = st.button("📈 Trending Books")
+
+with col3:
+    insight_btn = st.button("📊 Book Insights")
+
+
+menu = None
+if rec_btn:
+    menu = "rec"
+elif trend_btn:
+    menu = "trend"
+elif insight_btn:
+    menu = "insight"
 
 
 # -----------------------------
 # 1. RECOMMENDATIONS
 # -----------------------------
-if menu == 'Book Recommendations':
+if menu == "rec":
 
-    st.header('Find Similar Books')
+    st.header("Find Similar Books")
 
-    book_name = st.text_input('Enter a book title')
+    st.write("Type a book you enjoy and we will find similar ones.")
+
+    book_name = st.text_input("Enter book title")
 
     if book_name:
-
         results = recommend_books(book_name)
 
         if results.empty:
-            st.warning('Book not found in dataset')
+            st.warning("Book not found. Try another title.")
         else:
             st.dataframe(results, use_container_width=True)
 
@@ -109,21 +153,26 @@ if menu == 'Book Recommendations':
 # -----------------------------
 # 2. TRENDING BOOKS
 # -----------------------------
-if menu == 'Trending Books':
+if menu == "trend":
 
-    st.header('Top 100 Trending Books')
+    st.header("Most Popular Books")
+
+    st.write("These are the most read books in the collection.")
 
     st.dataframe(trending, use_container_width=True)
 
 
-if menu == 'Insights Dashboard':
+# -----------------------------
+# 3. INSIGHTS DASHBOARD
+# -----------------------------
+if menu == "insight":
 
-    st.header('Book Insights Overview')
+    st.header("Book Insights Overview")
 
-    # =====================================================
-    # TOP BOOKS LIST
-    # =====================================================
-    st.subheader('Most Popular Books')
+    st.write("Simple overview of reading patterns and preferences.")
+
+    # ---------------- TOP BOOKS ----------------
+    st.subheader("Most Popular Books")
 
     top_books = books['book_title'].value_counts().head(10)
 
@@ -133,48 +182,39 @@ if menu == 'Insights Dashboard':
     st.dataframe(top_books_df, use_container_width=True)
 
 
-    # =====================================================
-    # GENRES + AUTHORS (NO RE-SPLITTING)
-    # =====================================================
-    col1, col2 = st.columns(2)
-
     # ---------------- GENRES ----------------
+    st.subheader("Most Popular Genres")
+
     top_categories = (
         books['categories']
         .value_counts()
         .head(10)
     )
 
-    col1.subheader('Top Genres / Categories')
-    col1.bar_chart(top_categories)
+    st.bar_chart(top_categories)
 
 
     # ---------------- AUTHORS ----------------
+    st.subheader("Most Popular Authors")
+
     top_authors = (
         books['store']
         .value_counts()
         .head(10)
     )
 
-    col2.subheader('Top Authors')
-    col2.bar_chart(top_authors)
+    st.bar_chart(top_authors)
 
 
-    # =====================================================
-    # TIME SERIES (CLEAN VERSION)
-    # =====================================================
-    st.subheader('Top Genre Engagement Over Time')
+    # ---------------- TREND OVER TIME ----------------
+    st.subheader("Reading Trends Over Time")
 
     books['timestamp'] = pd.to_datetime(books['timestamp'], errors='coerce')
-
     books_clean = books.dropna(subset=['timestamp', 'categories']).copy()
 
-    # get top 5 genres
     top5_genres = books_clean['categories'].value_counts().head(5).index
 
     trend_df = books_clean[books_clean['categories'].isin(top5_genres)]
-
-    # create month column
     trend_df['month'] = trend_df['timestamp'].dt.to_period('M').astype(str)
 
     genre_time = (
