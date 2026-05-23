@@ -162,52 +162,80 @@ if menu == "trend":
     st.dataframe(trending, use_container_width=True)
 
 
-# -----------------------------
-# 3. INSIGHTS DASHBOARD
-# -----------------------------
-if menu == "insight":
+if menu == 'Insights Dashboard':
 
-    st.header("Book Insights Overview")
+    st.header('Book Insights Overview')
 
-    st.write("Simple overview of reading patterns and preferences.")
+    st.markdown(
+        """
+        <div style='font-size:20px; line-height:1.6; color:#5a3e2b;'>
+        This section shows which books, authors, and genres are most popular,
+        and how reading trends change over time.
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
 
-    # ---------------- TOP BOOKS ----------------
-    st.subheader("Most Popular Books")
+    st.write("")
+
+    # =====================================================
+    # TOP BOOKS LIST
+    # =====================================================
+    st.subheader('Most Popular Books')
 
     top_books = books['book_title'].value_counts().head(10)
 
     top_books_df = top_books.reset_index()
     top_books_df.columns = ['Book Title', 'Reader Count']
 
-    st.dataframe(top_books_df, use_container_width=True)
-
-
-    # ---------------- GENRES ----------------
-    st.subheader("Most Popular Genres")
-
-    top_categories = (
-        books['categories']
-        .value_counts()
-        .head(10)
+    st.dataframe(
+        top_books_df,
+        use_container_width=True,
+        height=400
     )
 
-    st.bar_chart(top_categories)
+    st.write("")
 
 
-    # ---------------- AUTHORS ----------------
-    st.subheader("Most Popular Authors")
+    # =====================================================
+    # GENRES + AUTHORS
+    # =====================================================
+    col1, col2 = st.columns(2)
 
-    top_authors = (
-        books['store']
-        .value_counts()
-        .head(10)
+    with col1:
+        st.subheader('Top Genres / Categories')
+
+        top_categories = (
+            books['categories']
+            .value_counts()
+            .head(10)
+        )
+
+        st.bar_chart(top_categories)
+
+    with col2:
+        st.subheader('Top Authors')
+
+        top_authors = (
+            books['store']
+            .value_counts()
+            .head(10)
+        )
+
+        st.bar_chart(top_authors)
+
+
+    st.write("")
+
+
+    # =====================================================
+    # TIME SERIES TREND
+    # =====================================================
+    st.subheader('Top Genre Engagement Over Time')
+
+    st.caption(
+        "This shows how the most popular genres change over time."
     )
-
-    st.bar_chart(top_authors)
-
-
-    # ---------------- TREND OVER TIME ----------------
-    st.subheader("Reading Trends Over Time")
 
     books['timestamp'] = pd.to_datetime(books['timestamp'], errors='coerce')
     books_clean = books.dropna(subset=['timestamp', 'categories']).copy()
@@ -215,6 +243,7 @@ if menu == "insight":
     top5_genres = books_clean['categories'].value_counts().head(5).index
 
     trend_df = books_clean[books_clean['categories'].isin(top5_genres)]
+
     trend_df['month'] = trend_df['timestamp'].dt.to_period('M').astype(str)
 
     genre_time = (
