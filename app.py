@@ -1,219 +1,304 @@
-import pandas as pd
-import numpy as np
-import matplotlib.pyplot as plt
-
-from sklearn.feature_extraction.text import TfidfVectorizer
-from sklearn.metrics.pairwise import cosine_similarity
-
-from mlxtend.frequent_patterns import apriori, association_rules
-
-st.set_page_config(page_title='Book Recommendation System', layout='wide')
-
-st.title('Book Recommendation System')
-
-
-# -----------------------------
-# LOAD DATA
-# -----------------------------
-def load_data():
-    books = pd.read_csv('books_clean.csv')
-    trending = pd.read_csv('trending_clean.csv')
-    return books, trending
-
-
-books, trending = load_data()
-
-
-# -----------------------------
-# CONTENT MODEL
-# -----------------------------
-def build_content_model(df):
-
-    df = df.dropna(subset=['content', 'book_title'])
-
-    tfidf = TfidfVectorizer(stop_words='english', max_features=3000)
-    tfidf_matrix = tfidf.fit_transform(df['content'])
-
-    sim = cosine_similarity(tfidf_matrix)
-
-    book_index = pd.Series(df.index, index=df['book_title']).drop_duplicates()
-
-    return sim, book_index, df
-
-
-content_sim, book_idx, df_cb = build_content_model(books)
-
-
-def recommend_content(title, top_n=10):
-
-    if title not in book_idx:
-        return pd.DataFrame()
-
-    idx = book_idx[title]
-
-    scores = list(enumerate(content_sim[idx]))
-    scores = sorted(scores, key=lambda x: x[1], reverse=True)[1:top_n + 1]
-
-    indices = [i[0] for i in scores]
-
-    recs = df_cb.iloc[indices][['book_title', 'rating']].copy()
-    recs['similarity'] = [i[1] for i in scores]
-
-    recs = recs.drop_duplicates(subset=['book_title'])
-
-    return recs
-
-
-# -----------------------------
-# BASKET BUILD (MEMORY SAFE)
-# -----------------------------
-def build_basket(df):
-
-    df = df[df['rating'] >= 4]
-    df = df[df['verified_purchase'] == True]
-
-    df = df[['user_id', 'book_title']].drop_duplicates()
-
-    # reduce sparsity
-    user_counts = df['user_id'].value_counts()
-    df = df[df['user_id'].isin(user_counts[user_counts >= 5].index)]
-
-    book_counts = df['book_title'].value_counts()
-    df = df[df['book_title'].isin(book_counts[book_counts >= 10].index)]
-
-    basket = df.groupby(['user_id', 'book_title']).size().unstack(fill_value=0)
-
-    # convert to binary safely
-    basket = basket > 0
-
-    return basket
-
-
-basket = build_basket(books)
-
-
-# -----------------------------
-# APRIORI (SAFE SETTINGS)
-# -----------------------------
-def run_apriori(basket):
-
-    freq = apriori(
-        basket,
-        min_support=0.01,
-        use_colnames=True,
-        low_memory=True
-    )
-
-    rules = association_rules(
-        freq,
-        metric='lift',
-        min_threshold=1.0
-    )
-
-    return rules
-
-
-rules = run_apriori(basket)
-
-
-# -----------------------------
-# SIDEBAR MENU
-# -----------------------------
-menu = st.sidebar.radio(
-    'Select View',
-    [
-        'Content-Based Recommendations',
-        'Market Basket Analysis',
-        'Trending Books',
-        'Analytics Dashboard'
-    ]
-)
-
-
-# -----------------------------
-# CONTENT-BASED
-# -----------------------------
-if menu == 'Content-Based Recommendations':
-
-    st.header('Content-Based Book Recommendations')
-
-    book_name = st.text_input('Enter book title')
-
-    if book_name:
-
-        recs = recommend_content(book_name, top_n=10)
-
-        if recs.empty:
-            st.write('Book not found in dataset')
-        else:
-            st.dataframe(recs, use_container_width=True)
-
-
-# -----------------------------
-# MARKET BASKET
-# -----------------------------
-if menu == 'Market Basket Analysis':
-
-    st.header('Books Frequently Bought Together')
-
-    min_lift = st.slider('Minimum Lift', 1.0, 10.0, 2.0)
-
-    filtered_rules = rules[
-        (rules['lift'] >= min_lift) &
-        (rules['confidence'] >= 0.3)
-    ]
-
-    st.dataframe(
-        filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']].head(20),
-        use_container_width=True
-    )
-
-
-# -----------------------------
-# TRENDING
-# -----------------------------
-if menu == 'Trending Books':
-
-    st.header('Top 100 Trending Books')
-
-    st.dataframe(trending, use_container_width=True)
-
-
-# -----------------------------
-# ANALYTICS DASHBOARD
-# -----------------------------
-if menu == 'Analytics Dashboard':
-
-    st.header('Dataset Insights from Top 100 Trending Books')
-
-    col1, col2, col3 = st.columns(3)
-
-    # POPULAR BOOKS
-    top_books = trending['book title'].value_counts().head(10)
-
-    fig1, ax1 = plt.subplots()
-    top_books.plot(kind='bar', ax=ax1)
-    ax1.set_title('Most Popular Trending Books')
-    ax1.tick_params(axis='x', rotation=45)
-
-    col1.pyplot(fig1)
-
-
-    # GENRES
-    genre_counts = trending['genre'].value_counts().head(10)
-
-    fig2, ax2 = plt.subplots()
-    genre_counts.plot(kind='bar', ax=ax2)
-    ax2.set_title('Top Genres')
-
-    col2.pyplot(fig2)
-
-
-    # AUTHORS
-    author_counts = trending['author'].value_counts().head(10)
-
-    fig3, ax3 = plt.subplots()
-    author_counts.plot(kind='bar', ax=ax3)
-    ax3.set_title('Top Authors')
-
-    col3.pyplot(fig3)
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "35f665e8-2374-40a4-9cb6-3972a1566292",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "2026-05-23 20:16:07.297 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:16:07.299 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:16:07.300 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:16:07.301 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.326 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.396 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.412 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.422 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.426 Session state does not function when running a script without `streamlit run`\n",
+      "2026-05-23 20:20:46.453 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.456 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.464 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.478 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.481 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.486 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.490 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.494 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.497 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.503 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.507 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.511 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
+      "2026-05-23 20:20:46.514 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n"
+     ]
+    }
+   ],
+   "source": [
+    "import pandas as pd\n",
+    "import numpy as np\n",
+    "import streamlit as st\n",
+    "\n",
+    "import plotly.express as px\n",
+    "\n",
+    "from sklearn.feature_extraction.text import TfidfVectorizer\n",
+    "from sklearn.metrics.pairwise import cosine_similarity\n",
+    "\n",
+    "from mlxtend.frequent_patterns import apriori, association_rules\n",
+    "\n",
+    "\n",
+    "st.set_page_config(page_title='Book Recommendation System', layout='wide')\n",
+    "\n",
+    "st.title('Book Recommendation System')\n",
+    "\n",
+    "\n",
+    "# -----------------------------\n",
+    "# LOAD DATA\n",
+    "# -----------------------------\n",
+    "def load_data():\n",
+    "    books = pd.read_csv('books_clean.csv')\n",
+    "    trending = pd.read_csv('trending_clean.csv')\n",
+    "    return books, trending\n",
+    "\n",
+    "\n",
+    "books, trending = load_data()\n",
+    "\n",
+    "\n",
+    "# -----------------------------\n",
+    "# KPI CARDS (NEW)\n",
+    "# -----------------------------\n",
+    "col1, col2, col3, col4 = st.columns(4)\n",
+    "\n",
+    "col1.metric('Total Books', len(books))\n",
+    "col2.metric('Total Users', books['user_id'].nunique())\n",
+    "col3.metric('Average Rating', round(books['rating'].mean(), 2))\n",
+    "col4.metric('Trending Titles', trending['book title'].nunique())\n",
+    "\n",
+    "\n",
+    "# -----------------------------\n",
+    "# CONTENT MODEL\n",
+    "# -----------------------------\n",
+    "def build_content_model(df):\n",
+    "\n",
+    "    df = df.dropna(subset=['content', 'book_title'])\n",
+    "\n",
+    "    tfidf = TfidfVectorizer(stop_words='english', max_features=3000)\n",
+    "    tfidf_matrix = tfidf.fit_transform(df['content'])\n",
+    "\n",
+    "    sim = cosine_similarity(tfidf_matrix)\n",
+    "\n",
+    "    book_index = pd.Series(df.index, index=df['book_title']).drop_duplicates()\n",
+    "\n",
+    "    return sim, book_index, df\n",
+    "\n",
+    "\n",
+    "content_sim, book_idx, df_cb = build_content_model(books)\n",
+    "\n",
+    "\n",
+    "def recommend_content(title, top_n=10):\n",
+    "\n",
+    "    if title not in book_idx:\n",
+    "        return pd.DataFrame()\n",
+    "\n",
+    "    idx = book_idx[title]\n",
+    "\n",
+    "    scores = list(enumerate(content_sim[idx]))\n",
+    "    scores = sorted(scores, key=lambda x: x[1], reverse=True)[1:top_n + 1]\n",
+    "\n",
+    "    indices = [i[0] for i in scores]\n",
+    "\n",
+    "    recs = df_cb.iloc[indices][['book_title', 'rating']].copy()\n",
+    "    recs['similarity'] = [i[1] for i in scores]\n",
+    "\n",
+    "    return recs.drop_duplicates(subset=['book_title'])\n",
+    "\n",
+    "\n",
+    "# -----------------------------\n",
+    "# BASKET BUILD (MEMORY SAFE)\n",
+    "# -----------------------------\n",
+    "def build_basket(df):\n",
+    "\n",
+    "    df = df[df['rating'] >= 4]\n",
+    "    df = df[df['verified_purchase'] == True]\n",
+    "\n",
+    "    df = df[['user_id', 'book_title']].drop_duplicates()\n",
+    "\n",
+    "    user_counts = df['user_id'].value_counts()\n",
+    "    df = df[df['user_id'].isin(user_counts[user_counts >= 5].index)]\n",
+    "\n",
+    "    book_counts = df['book_title'].value_counts()\n",
+    "    df = df[df['book_title'].isin(book_counts[book_counts >= 10].index)]\n",
+    "\n",
+    "    basket = df.groupby(['user_id', 'book_title']).size().unstack(fill_value=0)\n",
+    "\n",
+    "    return basket.astype(bool)\n",
+    "\n",
+    "\n",
+    "basket = build_basket(books)\n",
+    "\n",
+    "\n",
+    "# -----------------------------\n",
+    "# APRIORI\n",
+    "# -----------------------------\n",
+    "def run_apriori(basket):\n",
+    "\n",
+    "    freq = apriori(\n",
+    "        basket,\n",
+    "        min_support=0.01,\n",
+    "        use_colnames=True,\n",
+    "        low_memory=True\n",
+    "    )\n",
+    "\n",
+    "    rules = association_rules(\n",
+    "        freq,\n",
+    "        metric='lift',\n",
+    "        min_threshold=1.0\n",
+    "    )\n",
+    "\n",
+    "    return rules\n",
+    "\n",
+    "\n",
+    "rules = run_apriori(basket)\n",
+    "\n",
+    "\n",
+    "# -----------------------------\n",
+    "# SIDEBAR\n",
+    "# -----------------------------\n",
+    "menu = st.sidebar.radio(\n",
+    "    'Select View',\n",
+    "    [\n",
+    "        'Content-Based Recommendations',\n",
+    "        'Market Basket Analysis',\n",
+    "        'Trending Books',\n",
+    "        'Analytics Dashboard'\n",
+    "    ]\n",
+    ")\n",
+    "\n",
+    "\n",
+    "# -----------------------------\n",
+    "# CONTENT-BASED\n",
+    "# -----------------------------\n",
+    "if menu == 'Content-Based Recommendations':\n",
+    "\n",
+    "    st.header('Content-Based Book Recommendations')\n",
+    "\n",
+    "    book_name = st.text_input('Enter book title')\n",
+    "\n",
+    "    if book_name:\n",
+    "        recs = recommend_content(book_name)\n",
+    "\n",
+    "        if recs.empty:\n",
+    "            st.warning('Book not found in dataset')\n",
+    "        else:\n",
+    "            st.dataframe(recs, use_container_width=True)\n",
+    "\n",
+    "\n",
+    "# -----------------------------\n",
+    "# MARKET BASKET\n",
+    "# -----------------------------\n",
+    "if menu == 'Market Basket Analysis':\n",
+    "\n",
+    "    st.header('Books Frequently Bought Together')\n",
+    "\n",
+    "    min_lift = st.slider('Minimum Lift', 1.0, 10.0, 2.0)\n",
+    "\n",
+    "    filtered_rules = rules[\n",
+    "        (rules['lift'] >= min_lift) &\n",
+    "        (rules['confidence'] >= 0.3)\n",
+    "    ]\n",
+    "\n",
+    "    st.dataframe(\n",
+    "        filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']].head(20),\n",
+    "        use_container_width=True\n",
+    "    )\n",
+    "\n",
+    "\n",
+    "# -----------------------------\n",
+    "# TRENDING (CLEAN VISUALS)\n",
+    "# -----------------------------\n",
+    "if menu == 'Trending Books':\n",
+    "\n",
+    "    st.header('Top 100 Trending Books')\n",
+    "\n",
+    "    st.dataframe(trending, use_container_width=True)\n",
+    "\n",
+    "\n",
+    "# -----------------------------\n",
+    "# ANALYTICS DASHBOARD (FULL UPGRADE)\n",
+    "# -----------------------------\n",
+    "if menu == 'Analytics Dashboard':\n",
+    "\n",
+    "    st.header('Book Engagement Insights')\n",
+    "\n",
+    "    st.write(\n",
+    "        'This dashboard highlights popularity patterns across books, genres, and authors.'\n",
+    "    )\n",
+    "\n",
+    "    # ---------------- TOP BOOKS ----------------\n",
+    "    st.subheader('Most Popular Books')\n",
+    "\n",
+    "    top_books = trending['book title'].value_counts().head(10).reset_index()\n",
+    "    top_books.columns = ['Book', 'Count']\n",
+    "\n",
+    "    fig1 = px.bar(top_books, x='Count', y='Book', orientation='h', text='Count')\n",
+    "    fig1.update_layout(height=450)\n",
+    "\n",
+    "    st.plotly_chart(fig1, use_container_width=True)\n",
+    "\n",
+    "\n",
+    "    # ---------------- GENRES ----------------\n",
+    "    st.subheader('Top Genres')\n",
+    "\n",
+    "    genres = trending['genre'].value_counts().head(10).reset_index()\n",
+    "    genres.columns = ['Genre', 'Count']\n",
+    "\n",
+    "    fig2 = px.bar(genres, x='Count', y='Genre', orientation='h', text='Count')\n",
+    "    fig2.update_layout(height=450)\n",
+    "\n",
+    "    st.plotly_chart(fig2, use_container_width=True)\n",
+    "\n",
+    "\n",
+    "    # ---------------- AUTHORS ----------------\n",
+    "    st.subheader('Top Authors')\n",
+    "\n",
+    "    authors = trending['author'].value_counts().head(10).reset_index()\n",
+    "    authors.columns = ['Author', 'Count']\n",
+    "\n",
+    "    fig3 = px.bar(authors, x='Count', y='Author', orientation='h', text='Count')\n",
+    "    fig3.update_layout(height=450)\n",
+    "\n",
+    "    st.plotly_chart(fig3, use_container_width=True)\n"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "a0ddb0f5-2308-43c2-ab77-781ccd215e31",
+   "metadata": {},
+   "outputs": [],
+   "source": []
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python [conda env:base] *",
+   "language": "python",
+   "name": "conda-base-py"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.13.5"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
