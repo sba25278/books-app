@@ -1,7 +1,6 @@
+import streamlit as st
 import pandas as pd
 import numpy as np
-
-import streamlit as st
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -9,13 +8,19 @@ from sklearn.metrics.pairwise import cosine_similarity
 from mlxtend.frequent_patterns import apriori, association_rules
 
 
-st.set_page_config(page_title='Book Recommendation System', layout='wide')
+# -----------------------------
+# PAGE CONFIG
+# -----------------------------
+st.set_page_config(
+    page_title='Book Recommendation System',
+    layout='wide'
+)
 
 st.title('Book Recommendation System')
 
 
 # -----------------------------
-# LOAD DATA
+# LOAD DATA (FAST + CACHED)
 # -----------------------------
 @st.cache_data
 def load_data():
@@ -28,7 +33,7 @@ books, trending = load_data()
 
 
 # -----------------------------
-# CONTENT MODEL
+# CONTENT MODEL (LAZY + CACHED)
 # -----------------------------
 @st.cache_data
 def build_content_model(df):
@@ -63,13 +68,12 @@ def recommend_content(title, top_n=10):
     recs = df_cb.iloc[indices][['book_title', 'rating']].copy()
     recs['similarity'] = [i[1] for i in scores]
 
-    return recs.drop_duplicates(subset=['book_title'])
+    return recs.drop_duplicates(subset='book_title')
 
 
 # -----------------------------
-# BASKET BUILD (SAFE)
+# BASKET BUILD (HEAVY PART)
 # -----------------------------
-@st.cache_data
 def build_basket(df):
 
     df = df[df['rating'] >= 4]
@@ -77,6 +81,7 @@ def build_basket(df):
 
     df = df[['user_id', 'book_title']].drop_duplicates()
 
+    # reduce sparsity (IMPORTANT FOR MEMORY)
     user_counts = df['user_id'].value_counts()
     df = df[df['user_id'].isin(user_counts[user_counts >= 5].index)]
 
@@ -88,11 +93,8 @@ def build_basket(df):
     return basket > 0
 
 
-basket = build_basket(books)
-
-
 # -----------------------------
-# APRIORI
+# APRIORI (RUN ONLY WHEN NEEDED)
 # -----------------------------
 @st.cache_data
 def run_apriori(basket):
@@ -107,9 +109,6 @@ def run_apriori(basket):
     rules = association_rules(freq, metric='lift', min_threshold=1.0)
 
     return rules
-
-
-rules = run_apriori(basket)
 
 
 # -----------------------------
@@ -127,16 +126,15 @@ menu = st.sidebar.radio(
 
 
 # -----------------------------
-# CONTENT-BASED
+# CONTENT BASED
 # -----------------------------
 if menu == 'Content-Based Recommendations':
 
-    st.header('Content-Based Book Recommendations')
+    st.header('Content-Based Recommendations')
 
     book_name = st.text_input('Enter book title')
 
     if book_name:
-
         recs = recommend_content(book_name)
 
         if recs.empty:
@@ -146,20 +144,28 @@ if menu == 'Content-Based Recommendations':
 
 
 # -----------------------------
-# MARKET BASKET
+# MARKET BASKET (LAZY LOAD FIX)
 # -----------------------------
 if menu == 'Market Basket Analysis':
 
-    st.header('Books Frequently Bought Together')
+    st.header('Frequently Bought Together')
 
     min_lift = st.slider('Minimum Lift', 1.0, 10.0, 2.0)
+
+    with st.spinner('Building association rules...'):
+
+        basket = build_basket(books)
+        rules = run_apriori(basket)
 
     filtered = rules[
         (rules['lift'] >= min_lift) &
         (rules['confidence'] >= 0.3)
     ]
 
-    st.dataframe(filtered[['antecedents', 'consequents', 'support', 'confidence', 'lift']].head(20))
+    st.dataframe(
+        filtered[['antecedents', 'consequents', 'support', 'confidence', 'lift']].head(20),
+        use_container_width=True
+    )
 
 
 # -----------------------------
@@ -168,7 +174,6 @@ if menu == 'Market Basket Analysis':
 if menu == 'Trending Books':
 
     st.header('Top 100 Trending Books')
-
     st.dataframe(trending, use_container_width=True)
 
 
@@ -177,21 +182,24 @@ if menu == 'Trending Books':
 # -----------------------------
 if menu == 'Analytics Dashboard':
 
-    st.header('Trending Books Insights')
+    st.header('Insights from Trending Books')
 
     col1, col2, col3 = st.columns(3)
 
-    # POPULAR BOOKS
+    # Popular books
     top_books = trending['book title'].value_counts().head(10)
     col1.subheader('Top Books')
     col1.bar_chart(top_books)
 
-    # GENRES
+    # Genres
     genre_counts = trending['genre'].value_counts().head(10)
     col2.subheader('Top Genres')
     col2.bar_chart(genre_counts)
 
-    # AUTHORS
+    # Authors
     author_counts = trending['author'].value_counts().head(10)
     col3.subheader('Top Authors')
     col3.bar_chart(author_counts)
+
+
+    st.markdown('---')
