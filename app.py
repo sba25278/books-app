@@ -116,9 +116,6 @@ if menu == 'Trending Books':
     st.dataframe(trending, use_container_width=True)
 
 
-# -----------------------------
-# 3. INSIGHTS DASHBOARD (STREAMLIT ONLY)
-# -----------------------------
 if menu == 'Insights Dashboard':
 
     st.header('Book Insights Overview')
@@ -137,36 +134,15 @@ if menu == 'Insights Dashboard':
 
 
     # =====================================================
-    # SORTED GENRE + AUTHOR CHARTS
+    # GENRES + AUTHORS (NO RE-SPLITTING)
     # =====================================================
     col1, col2 = st.columns(2)
 
-    # ---------------- CATEGORIES / GENRES ----------------
-    cats = books[['categories']].dropna().copy()
-
-    cats['categories'] = cats['categories'].astype(str)
-
-    cats['categories'] = cats['categories'].str.replace('[', '', regex=False)
-    cats['categories'] = cats['categories'].str.replace(']', '', regex=False)
-    cats['categories'] = cats['categories'].str.replace("'", '', regex=False)
-
-    cats['categories'] = cats['categories'].str.split(',')
-
-    cats = cats.explode('categories')
-
-    cats['categories'] = cats['categories'].str.strip()
-
-    cats = cats[cats['categories'] != '']
-
-    # remove generic Books category
-    cats = cats[cats['categories'].str.lower() != 'books']
-
-    # sorted top categories
+    # ---------------- GENRES ----------------
     top_categories = (
-        cats['categories']
+        books['categories']
         .value_counts()
-        .sort_values(ascending=True)
-        .tail(10)
+        .head(10)
     )
 
     col1.subheader('Top Genres / Categories')
@@ -177,8 +153,7 @@ if menu == 'Insights Dashboard':
     top_authors = (
         books['store']
         .value_counts()
-        .sort_values(ascending=True)
-        .tail(10)
+        .head(10)
     )
 
     col2.subheader('Top Authors')
@@ -186,69 +161,24 @@ if menu == 'Insights Dashboard':
 
 
     # =====================================================
-    # SALES / ENGAGEMENT OVER TIME
+    # TIME SERIES (CLEAN VERSION)
     # =====================================================
     st.subheader('Top Genre Engagement Over Time')
 
-    # prepare dates
-    books['timestamp'] = pd.to_datetime(books['timestamp'])
+    books['timestamp'] = pd.to_datetime(books['timestamp'], errors='coerce')
+
+    books_clean = books.dropna(subset=['timestamp', 'categories']).copy()
 
     # get top 5 genres
-    top5_genres = (
-        cats['categories']
-        .value_counts()
-        .head(5)
-        .index
-    )
+    top5_genres = books_clean['categories'].value_counts().head(5).index
 
-    # rebuild dataset with exploded categories
-    trend_df = books[['timestamp', 'categories']].dropna().copy()
+    trend_df = books_clean[books_clean['categories'].isin(top5_genres)]
 
-    trend_df['categories'] = trend_df['categories'].astype(str)
-
-    trend_df['categories'] = trend_df['categories'].str.replace('[', '', regex=False)
-    trend_df['categories'] = trend_df['categories'].str.replace(']', '', regex=False)
-    trend_df['categories'] = trend_df['categories'].str.replace("'", '', regex=False)
-
-    trend_df['categories'] = trend_df['categories'].str.split(',')
-
-    trend_df = trend_df.explode('categories')
-
-    trend_df['categories'] = trend_df['categories'].str.strip()
-
-    trend_df = trend_df[
-        trend_df['categories'].isin(top5_genres)
-    ]
-
-    # =====================================================
-    # DATE RANGE FILTER
-    # =====================================================
-    min_date = trend_df['timestamp'].min().date()
-    max_date = trend_df['timestamp'].max().date()
-
-    date_range = st.slider(
-        'Select Time Period',
-        min_value=min_date,
-        max_value=max_date,
-        value=(min_date, max_date)
-    )
-
-    start_date, end_date = date_range
-
-    filtered_trend = trend_df[
-        (trend_df['timestamp'].dt.date >= start_date) &
-        (trend_df['timestamp'].dt.date <= end_date)
-    ]
-
-    # monthly aggregation
-    filtered_trend['month'] = (
-        filtered_trend['timestamp']
-        .dt.to_period('M')
-        .astype(str)
-    )
+    # create month column
+    trend_df['month'] = trend_df['timestamp'].dt.to_period('M').astype(str)
 
     genre_time = (
-        filtered_trend
+        trend_df
         .groupby(['month', 'categories'])
         .size()
         .unstack(fill_value=0)
