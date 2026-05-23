@@ -1,305 +1,219 @@
-{
- "cells": [
-  {
-   "cell_type": "code",
-   "execution_count": 1,
-   "id": "24e07704-86f2-45bb-958e-d95c8e7f561d",
-   "metadata": {},
-   "outputs": [],
-   "source": [
-    "import streamlit as st\n",
-    "import pandas as pd\n",
-    "import numpy as np\n",
-    "\n",
-    "from sklearn.feature_extraction.text import TfidfVectorizer\n",
-    "from sklearn.metrics.pairwise import cosine_similarity\n",
-    "\n",
-    "from mlxtend.frequent_patterns import apriori, association_rules\n",
-    "\n",
-    "import matplotlib.pyplot as plt"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": 2,
-   "id": "35f665e8-2374-40a4-9cb6-3972a1566292",
-   "metadata": {},
-   "outputs": [
-    {
-     "name": "stderr",
-     "output_type": "stream",
-     "text": [
-      "2026-05-23 19:58:47.089 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-      "2026-05-23 19:58:47.090 WARNING streamlit.runtime.scriptrunner_utils.script_run_context: Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-      "2026-05-23 19:58:47.647 \n",
-      "  \u001b[33m\u001b[1mWarning:\u001b[0m to view this Streamlit app on a browser, run it with the following\n",
-      "  command:\n",
-      "\n",
-      "    streamlit run C:\\Users\\Blaithin\\AppData\\Roaming\\Python\\Python313\\site-packages\\ipykernel_launcher.py [ARGUMENTS]\n",
-      "2026-05-23 19:58:47.648 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n",
-      "2026-05-23 19:58:47.649 Thread 'MainThread': missing ScriptRunContext! This warning can be ignored when running in bare mode.\n"
-     ]
-    },
-    {
-     "ename": "KeyboardInterrupt",
-     "evalue": "",
-     "output_type": "error",
-     "traceback": [
-      "\u001b[31m---------------------------------------------------------------------------\u001b[39m",
-      "\u001b[31mKeyboardInterrupt\u001b[39m                         Traceback (most recent call last)",
-      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[2]\u001b[39m\u001b[32m, line 25\u001b[39m\n\u001b[32m     20\u001b[39m     book_index = pd.Series(df.index, index=df[\u001b[33m'\u001b[39m\u001b[33mbook_title\u001b[39m\u001b[33m'\u001b[39m]).drop_duplicates()\n\u001b[32m     22\u001b[39m     \u001b[38;5;28;01mreturn\u001b[39;00m sim, book_index, df\n\u001b[32m---> \u001b[39m\u001b[32m25\u001b[39m content_sim, book_idx, df_cb = \u001b[43mbuild_content_model\u001b[49m\u001b[43m(\u001b[49m\u001b[43mbooks\u001b[49m\u001b[43m)\u001b[49m\n\u001b[32m     28\u001b[39m \u001b[38;5;28;01mdef\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34mrecommend_content\u001b[39m(title, top_n=\u001b[32m10\u001b[39m):\n\u001b[32m     30\u001b[39m     \u001b[38;5;28;01mif\u001b[39;00m title \u001b[38;5;129;01mnot\u001b[39;00m \u001b[38;5;129;01min\u001b[39;00m book_idx:\n",
-      "\u001b[36mCell\u001b[39m\u001b[36m \u001b[39m\u001b[32mIn[2]\u001b[39m\u001b[32m, line 16\u001b[39m, in \u001b[36mbuild_content_model\u001b[39m\u001b[34m(df)\u001b[39m\n\u001b[32m     14\u001b[39m \u001b[38;5;28;01mdef\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34mbuild_content_model\u001b[39m(df):\n\u001b[32m     15\u001b[39m     tfidf = TfidfVectorizer(stop_words=\u001b[33m'\u001b[39m\u001b[33menglish\u001b[39m\u001b[33m'\u001b[39m, max_features=\u001b[32m5000\u001b[39m)\n\u001b[32m---> \u001b[39m\u001b[32m16\u001b[39m     tfidf_matrix = \u001b[43mtfidf\u001b[49m\u001b[43m.\u001b[49m\u001b[43mfit_transform\u001b[49m\u001b[43m(\u001b[49m\u001b[43mdf\u001b[49m\u001b[43m[\u001b[49m\u001b[33;43m'\u001b[39;49m\u001b[33;43mcontent\u001b[39;49m\u001b[33;43m'\u001b[39;49m\u001b[43m]\u001b[49m\u001b[43m)\u001b[49m\n\u001b[32m     18\u001b[39m     sim = cosine_similarity(tfidf_matrix)\n\u001b[32m     20\u001b[39m     book_index = pd.Series(df.index, index=df[\u001b[33m'\u001b[39m\u001b[33mbook_title\u001b[39m\u001b[33m'\u001b[39m]).drop_duplicates()\n",
-      "\u001b[36mFile \u001b[39m\u001b[32m~\\anaconda3\\Lib\\site-packages\\sklearn\\feature_extraction\\text.py:2104\u001b[39m, in \u001b[36mTfidfVectorizer.fit_transform\u001b[39m\u001b[34m(self, raw_documents, y)\u001b[39m\n\u001b[32m   2097\u001b[39m \u001b[38;5;28mself\u001b[39m._check_params()\n\u001b[32m   2098\u001b[39m \u001b[38;5;28mself\u001b[39m._tfidf = TfidfTransformer(\n\u001b[32m   2099\u001b[39m     norm=\u001b[38;5;28mself\u001b[39m.norm,\n\u001b[32m   2100\u001b[39m     use_idf=\u001b[38;5;28mself\u001b[39m.use_idf,\n\u001b[32m   2101\u001b[39m     smooth_idf=\u001b[38;5;28mself\u001b[39m.smooth_idf,\n\u001b[32m   2102\u001b[39m     sublinear_tf=\u001b[38;5;28mself\u001b[39m.sublinear_tf,\n\u001b[32m   2103\u001b[39m )\n\u001b[32m-> \u001b[39m\u001b[32m2104\u001b[39m X = \u001b[38;5;28;43msuper\u001b[39;49m\u001b[43m(\u001b[49m\u001b[43m)\u001b[49m\u001b[43m.\u001b[49m\u001b[43mfit_transform\u001b[49m\u001b[43m(\u001b[49m\u001b[43mraw_documents\u001b[49m\u001b[43m)\u001b[49m\n\u001b[32m   2105\u001b[39m \u001b[38;5;28mself\u001b[39m._tfidf.fit(X)\n\u001b[32m   2106\u001b[39m \u001b[38;5;66;03m# X is already a transformed view of raw_documents so\u001b[39;00m\n\u001b[32m   2107\u001b[39m \u001b[38;5;66;03m# we set copy to False\u001b[39;00m\n",
-      "\u001b[36mFile \u001b[39m\u001b[32m~\\anaconda3\\Lib\\site-packages\\sklearn\\base.py:1389\u001b[39m, in \u001b[36m_fit_context.<locals>.decorator.<locals>.wrapper\u001b[39m\u001b[34m(estimator, *args, **kwargs)\u001b[39m\n\u001b[32m   1382\u001b[39m     estimator._validate_params()\n\u001b[32m   1384\u001b[39m \u001b[38;5;28;01mwith\u001b[39;00m config_context(\n\u001b[32m   1385\u001b[39m     skip_parameter_validation=(\n\u001b[32m   1386\u001b[39m         prefer_skip_nested_validation \u001b[38;5;129;01mor\u001b[39;00m global_skip_validation\n\u001b[32m   1387\u001b[39m     )\n\u001b[32m   1388\u001b[39m ):\n\u001b[32m-> \u001b[39m\u001b[32m1389\u001b[39m     \u001b[38;5;28;01mreturn\u001b[39;00m \u001b[43mfit_method\u001b[49m\u001b[43m(\u001b[49m\u001b[43mestimator\u001b[49m\u001b[43m,\u001b[49m\u001b[43m \u001b[49m\u001b[43m*\u001b[49m\u001b[43margs\u001b[49m\u001b[43m,\u001b[49m\u001b[43m \u001b[49m\u001b[43m*\u001b[49m\u001b[43m*\u001b[49m\u001b[43mkwargs\u001b[49m\u001b[43m)\u001b[49m\n",
-      "\u001b[36mFile \u001b[39m\u001b[32m~\\anaconda3\\Lib\\site-packages\\sklearn\\feature_extraction\\text.py:1376\u001b[39m, in \u001b[36mCountVectorizer.fit_transform\u001b[39m\u001b[34m(self, raw_documents, y)\u001b[39m\n\u001b[32m   1368\u001b[39m             warnings.warn(\n\u001b[32m   1369\u001b[39m                 \u001b[33m\"\u001b[39m\u001b[33mUpper case characters found in\u001b[39m\u001b[33m\"\u001b[39m\n\u001b[32m   1370\u001b[39m                 \u001b[33m\"\u001b[39m\u001b[33m vocabulary while \u001b[39m\u001b[33m'\u001b[39m\u001b[33mlowercase\u001b[39m\u001b[33m'\u001b[39m\u001b[33m\"\u001b[39m\n\u001b[32m   1371\u001b[39m                 \u001b[33m\"\u001b[39m\u001b[33m is True. These entries will not\u001b[39m\u001b[33m\"\u001b[39m\n\u001b[32m   1372\u001b[39m                 \u001b[33m\"\u001b[39m\u001b[33m be matched with any documents\u001b[39m\u001b[33m\"\u001b[39m\n\u001b[32m   1373\u001b[39m             )\n\u001b[32m   1374\u001b[39m             \u001b[38;5;28;01mbreak\u001b[39;00m\n\u001b[32m-> \u001b[39m\u001b[32m1376\u001b[39m vocabulary, X = \u001b[38;5;28;43mself\u001b[39;49m\u001b[43m.\u001b[49m\u001b[43m_count_vocab\u001b[49m\u001b[43m(\u001b[49m\u001b[43mraw_documents\u001b[49m\u001b[43m,\u001b[49m\u001b[43m \u001b[49m\u001b[38;5;28;43mself\u001b[39;49m\u001b[43m.\u001b[49m\u001b[43mfixed_vocabulary_\u001b[49m\u001b[43m)\u001b[49m\n\u001b[32m   1378\u001b[39m \u001b[38;5;28;01mif\u001b[39;00m \u001b[38;5;28mself\u001b[39m.binary:\n\u001b[32m   1379\u001b[39m     X.data.fill(\u001b[32m1\u001b[39m)\n",
-      "\u001b[36mFile \u001b[39m\u001b[32m~\\anaconda3\\Lib\\site-packages\\sklearn\\feature_extraction\\text.py:1263\u001b[39m, in \u001b[36mCountVectorizer._count_vocab\u001b[39m\u001b[34m(self, raw_documents, fixed_vocab)\u001b[39m\n\u001b[32m   1261\u001b[39m \u001b[38;5;28;01mfor\u001b[39;00m doc \u001b[38;5;129;01min\u001b[39;00m raw_documents:\n\u001b[32m   1262\u001b[39m     feature_counter = {}\n\u001b[32m-> \u001b[39m\u001b[32m1263\u001b[39m     \u001b[38;5;28;01mfor\u001b[39;00m feature \u001b[38;5;129;01min\u001b[39;00m \u001b[43manalyze\u001b[49m\u001b[43m(\u001b[49m\u001b[43mdoc\u001b[49m\u001b[43m)\u001b[49m:\n\u001b[32m   1264\u001b[39m         \u001b[38;5;28;01mtry\u001b[39;00m:\n\u001b[32m   1265\u001b[39m             feature_idx = vocabulary[feature]\n",
-      "\u001b[36mFile \u001b[39m\u001b[32m~\\anaconda3\\Lib\\site-packages\\sklearn\\feature_extraction\\text.py:109\u001b[39m, in \u001b[36m_analyze\u001b[39m\u001b[34m(doc, analyzer, tokenizer, ngrams, preprocessor, decoder, stop_words)\u001b[39m\n\u001b[32m    107\u001b[39m \u001b[38;5;28;01mif\u001b[39;00m ngrams \u001b[38;5;129;01mis\u001b[39;00m \u001b[38;5;129;01mnot\u001b[39;00m \u001b[38;5;28;01mNone\u001b[39;00m:\n\u001b[32m    108\u001b[39m     \u001b[38;5;28;01mif\u001b[39;00m stop_words \u001b[38;5;129;01mis\u001b[39;00m \u001b[38;5;129;01mnot\u001b[39;00m \u001b[38;5;28;01mNone\u001b[39;00m:\n\u001b[32m--> \u001b[39m\u001b[32m109\u001b[39m         doc = \u001b[43mngrams\u001b[49m\u001b[43m(\u001b[49m\u001b[43mdoc\u001b[49m\u001b[43m,\u001b[49m\u001b[43m \u001b[49m\u001b[43mstop_words\u001b[49m\u001b[43m)\u001b[49m\n\u001b[32m    110\u001b[39m     \u001b[38;5;28;01melse\u001b[39;00m:\n\u001b[32m    111\u001b[39m         doc = ngrams(doc)\n",
-      "\u001b[36mFile \u001b[39m\u001b[32m~\\anaconda3\\Lib\\site-packages\\sklearn\\feature_extraction\\text.py:238\u001b[39m, in \u001b[36m_VectorizerMixin._word_ngrams\u001b[39m\u001b[34m(self, tokens, stop_words)\u001b[39m\n\u001b[32m    232\u001b[39m         \u001b[38;5;28;01mraise\u001b[39;00m \u001b[38;5;167;01mValueError\u001b[39;00m(\n\u001b[32m    233\u001b[39m             \u001b[33m\"\u001b[39m\u001b[33mnp.nan is an invalid document, expected byte or unicode string.\u001b[39m\u001b[33m\"\u001b[39m\n\u001b[32m    234\u001b[39m         )\n\u001b[32m    236\u001b[39m     \u001b[38;5;28;01mreturn\u001b[39;00m doc\n\u001b[32m--> \u001b[39m\u001b[32m238\u001b[39m \u001b[38;5;28;01mdef\u001b[39;00m\u001b[38;5;250m \u001b[39m\u001b[34m_word_ngrams\u001b[39m(\u001b[38;5;28mself\u001b[39m, tokens, stop_words=\u001b[38;5;28;01mNone\u001b[39;00m):\n\u001b[32m    239\u001b[39m \u001b[38;5;250m    \u001b[39m\u001b[33;03m\"\"\"Turn tokens into a sequence of n-grams after stop words filtering\"\"\"\u001b[39;00m\n\u001b[32m    240\u001b[39m     \u001b[38;5;66;03m# handle stop words\u001b[39;00m\n",
-      "\u001b[31mKeyboardInterrupt\u001b[39m: "
-     ]
-    }
-   ],
-   "source": [
-    "st.set_page_config(page_title='Book Recommendation System', layout='wide')\n",
-    "\n",
-    "st.title('Book Recommendation System')\n",
-    "\n",
-    "\n",
-    "# -----------------------------\n",
-    "# LOAD DATA\n",
-    "# -----------------------------\n",
-    "def load_data():\n",
-    "    books = pd.read_csv('books_clean.csv')\n",
-    "    trending = pd.read_csv('trending_clean.csv')\n",
-    "    return books, trending\n",
-    "\n",
-    "\n",
-    "books, trending = load_data()\n",
-    "\n",
-    "\n",
-    "# -----------------------------\n",
-    "# CONTENT MODEL\n",
-    "# -----------------------------\n",
-    "def build_content_model(df):\n",
-    "\n",
-    "    df = df.dropna(subset=['content', 'book_title'])\n",
-    "\n",
-    "    tfidf = TfidfVectorizer(stop_words='english', max_features=3000)\n",
-    "    tfidf_matrix = tfidf.fit_transform(df['content'])\n",
-    "\n",
-    "    sim = cosine_similarity(tfidf_matrix)\n",
-    "\n",
-    "    book_index = pd.Series(df.index, index=df['book_title']).drop_duplicates()\n",
-    "\n",
-    "    return sim, book_index, df\n",
-    "\n",
-    "\n",
-    "content_sim, book_idx, df_cb = build_content_model(books)\n",
-    "\n",
-    "\n",
-    "def recommend_content(title, top_n=10):\n",
-    "\n",
-    "    if title not in book_idx:\n",
-    "        return pd.DataFrame()\n",
-    "\n",
-    "    idx = book_idx[title]\n",
-    "\n",
-    "    scores = list(enumerate(content_sim[idx]))\n",
-    "    scores = sorted(scores, key=lambda x: x[1], reverse=True)[1:top_n + 1]\n",
-    "\n",
-    "    indices = [i[0] for i in scores]\n",
-    "\n",
-    "    recs = df_cb.iloc[indices][['book_title', 'rating']].copy()\n",
-    "    recs['similarity'] = [i[1] for i in scores]\n",
-    "\n",
-    "    recs = recs.drop_duplicates(subset=['book_title'])\n",
-    "\n",
-    "    return recs\n",
-    "\n",
-    "\n",
-    "# -----------------------------\n",
-    "# BASKET BUILD (MEMORY SAFE)\n",
-    "# -----------------------------\n",
-    "def build_basket(df):\n",
-    "\n",
-    "    df = df[df['rating'] >= 4]\n",
-    "    df = df[df['verified_purchase'] == True]\n",
-    "\n",
-    "    df = df[['user_id', 'book_title']].drop_duplicates()\n",
-    "\n",
-    "    # reduce sparsity\n",
-    "    user_counts = df['user_id'].value_counts()\n",
-    "    df = df[df['user_id'].isin(user_counts[user_counts >= 5].index)]\n",
-    "\n",
-    "    book_counts = df['book_title'].value_counts()\n",
-    "    df = df[df['book_title'].isin(book_counts[book_counts >= 10].index)]\n",
-    "\n",
-    "    basket = df.groupby(['user_id', 'book_title']).size().unstack(fill_value=0)\n",
-    "\n",
-    "    # convert to binary safely\n",
-    "    basket = basket > 0\n",
-    "\n",
-    "    return basket\n",
-    "\n",
-    "\n",
-    "basket = build_basket(books)\n",
-    "\n",
-    "\n",
-    "# -----------------------------\n",
-    "# APRIORI (SAFE SETTINGS)\n",
-    "# -----------------------------\n",
-    "def run_apriori(basket):\n",
-    "\n",
-    "    freq = apriori(\n",
-    "        basket,\n",
-    "        min_support=0.01,\n",
-    "        use_colnames=True,\n",
-    "        low_memory=True\n",
-    "    )\n",
-    "\n",
-    "    rules = association_rules(\n",
-    "        freq,\n",
-    "        metric='lift',\n",
-    "        min_threshold=1.0\n",
-    "    )\n",
-    "\n",
-    "    return rules\n",
-    "\n",
-    "\n",
-    "rules = run_apriori(basket)\n",
-    "\n",
-    "\n",
-    "# -----------------------------\n",
-    "# SIDEBAR MENU\n",
-    "# -----------------------------\n",
-    "menu = st.sidebar.radio(\n",
-    "    'Select View',\n",
-    "    [\n",
-    "        'Content-Based Recommendations',\n",
-    "        'Market Basket Analysis',\n",
-    "        'Trending Books',\n",
-    "        'Analytics Dashboard'\n",
-    "    ]\n",
-    ")\n",
-    "\n",
-    "\n",
-    "# -----------------------------\n",
-    "# CONTENT-BASED\n",
-    "# -----------------------------\n",
-    "if menu == 'Content-Based Recommendations':\n",
-    "\n",
-    "    st.header('Content-Based Book Recommendations')\n",
-    "\n",
-    "    book_name = st.text_input('Enter book title')\n",
-    "\n",
-    "    if book_name:\n",
-    "\n",
-    "        recs = recommend_content(book_name, top_n=10)\n",
-    "\n",
-    "        if recs.empty:\n",
-    "            st.write('Book not found in dataset')\n",
-    "        else:\n",
-    "            st.dataframe(recs, use_container_width=True)\n",
-    "\n",
-    "\n",
-    "# -----------------------------\n",
-    "# MARKET BASKET\n",
-    "# -----------------------------\n",
-    "if menu == 'Market Basket Analysis':\n",
-    "\n",
-    "    st.header('Books Frequently Bought Together')\n",
-    "\n",
-    "    min_lift = st.slider('Minimum Lift', 1.0, 10.0, 2.0)\n",
-    "\n",
-    "    filtered_rules = rules[\n",
-    "        (rules['lift'] >= min_lift) &\n",
-    "        (rules['confidence'] >= 0.3)\n",
-    "    ]\n",
-    "\n",
-    "    st.dataframe(\n",
-    "        filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']].head(20),\n",
-    "        use_container_width=True\n",
-    "    )\n",
-    "\n",
-    "\n",
-    "# -----------------------------\n",
-    "# TRENDING\n",
-    "# -----------------------------\n",
-    "if menu == 'Trending Books':\n",
-    "\n",
-    "    st.header('Top 100 Trending Books')\n",
-    "\n",
-    "    st.dataframe(trending, use_container_width=True)\n",
-    "\n",
-    "\n",
-    "# -----------------------------\n",
-    "# ANALYTICS DASHBOARD\n",
-    "# -----------------------------\n",
-    "if menu == 'Analytics Dashboard':\n",
-    "\n",
-    "    st.header('Dataset Insights from Top 100 Trending Books')\n",
-    "\n",
-    "    col1, col2, col3 = st.columns(3)\n",
-    "\n",
-    "    # POPULAR BOOKS\n",
-    "    top_books = trending['book title'].value_counts().head(10)\n",
-    "\n",
-    "    fig1, ax1 = plt.subplots()\n",
-    "    top_books.plot(kind='bar', ax=ax1)\n",
-    "    ax1.set_title('Most Popular Trending Books')\n",
-    "    ax1.tick_params(axis='x', rotation=45)\n",
-    "\n",
-    "    col1.pyplot(fig1)\n",
-    "\n",
-    "\n",
-    "    # GENRES\n",
-    "    genre_counts = trending['genre'].value_counts().head(10)\n",
-    "\n",
-    "    fig2, ax2 = plt.subplots()\n",
-    "    genre_counts.plot(kind='bar', ax=ax2)\n",
-    "    ax2.set_title('Top Genres')\n",
-    "\n",
-    "    col2.pyplot(fig2)\n",
-    "\n",
-    "\n",
-    "    # AUTHORS\n",
-    "    author_counts = trending['author'].value_counts().head(10)\n",
-    "\n",
-    "    fig3, ax3 = plt.subplots()\n",
-    "    author_counts.plot(kind='bar', ax=ax3)\n",
-    "    ax3.set_title('Top Authors')\n",
-    "\n",
-    "    col3.pyplot(fig3)\n"
-   ]
-  },
-  {
-   "cell_type": "code",
-   "execution_count": null,
-   "id": "a0ddb0f5-2308-43c2-ab77-781ccd215e31",
-   "metadata": {},
-   "outputs": [],
-   "source": []
-  }
- ],
- "metadata": {
-  "kernelspec": {
-   "display_name": "Python [conda env:base] *",
-   "language": "python",
-   "name": "conda-base-py"
-  },
-  "language_info": {
-   "codemirror_mode": {
-    "name": "ipython",
-    "version": 3
-   },
-   "file_extension": ".py",
-   "mimetype": "text/x-python",
-   "name": "python",
-   "nbconvert_exporter": "python",
-   "pygments_lexer": "ipython3",
-   "version": "3.13.5"
-  }
- },
- "nbformat": 4,
- "nbformat_minor": 5
-}
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+
+from mlxtend.frequent_patterns import apriori, association_rules
+
+st.set_page_config(page_title='Book Recommendation System', layout='wide')
+
+st.title('Book Recommendation System')
+
+
+# -----------------------------
+# LOAD DATA
+# -----------------------------
+def load_data():
+    books = pd.read_csv('books_clean.csv')
+    trending = pd.read_csv('trending_clean.csv')
+    return books, trending
+
+
+books, trending = load_data()
+
+
+# -----------------------------
+# CONTENT MODEL
+# -----------------------------
+def build_content_model(df):
+
+    df = df.dropna(subset=['content', 'book_title'])
+
+    tfidf = TfidfVectorizer(stop_words='english', max_features=3000)
+    tfidf_matrix = tfidf.fit_transform(df['content'])
+
+    sim = cosine_similarity(tfidf_matrix)
+
+    book_index = pd.Series(df.index, index=df['book_title']).drop_duplicates()
+
+    return sim, book_index, df
+
+
+content_sim, book_idx, df_cb = build_content_model(books)
+
+
+def recommend_content(title, top_n=10):
+
+    if title not in book_idx:
+        return pd.DataFrame()
+
+    idx = book_idx[title]
+
+    scores = list(enumerate(content_sim[idx]))
+    scores = sorted(scores, key=lambda x: x[1], reverse=True)[1:top_n + 1]
+
+    indices = [i[0] for i in scores]
+
+    recs = df_cb.iloc[indices][['book_title', 'rating']].copy()
+    recs['similarity'] = [i[1] for i in scores]
+
+    recs = recs.drop_duplicates(subset=['book_title'])
+
+    return recs
+
+
+# -----------------------------
+# BASKET BUILD (MEMORY SAFE)
+# -----------------------------
+def build_basket(df):
+
+    df = df[df['rating'] >= 4]
+    df = df[df['verified_purchase'] == True]
+
+    df = df[['user_id', 'book_title']].drop_duplicates()
+
+    # reduce sparsity
+    user_counts = df['user_id'].value_counts()
+    df = df[df['user_id'].isin(user_counts[user_counts >= 5].index)]
+
+    book_counts = df['book_title'].value_counts()
+    df = df[df['book_title'].isin(book_counts[book_counts >= 10].index)]
+
+    basket = df.groupby(['user_id', 'book_title']).size().unstack(fill_value=0)
+
+    # convert to binary safely
+    basket = basket > 0
+
+    return basket
+
+
+basket = build_basket(books)
+
+
+# -----------------------------
+# APRIORI (SAFE SETTINGS)
+# -----------------------------
+def run_apriori(basket):
+
+    freq = apriori(
+        basket,
+        min_support=0.01,
+        use_colnames=True,
+        low_memory=True
+    )
+
+    rules = association_rules(
+        freq,
+        metric='lift',
+        min_threshold=1.0
+    )
+
+    return rules
+
+
+rules = run_apriori(basket)
+
+
+# -----------------------------
+# SIDEBAR MENU
+# -----------------------------
+menu = st.sidebar.radio(
+    'Select View',
+    [
+        'Content-Based Recommendations',
+        'Market Basket Analysis',
+        'Trending Books',
+        'Analytics Dashboard'
+    ]
+)
+
+
+# -----------------------------
+# CONTENT-BASED
+# -----------------------------
+if menu == 'Content-Based Recommendations':
+
+    st.header('Content-Based Book Recommendations')
+
+    book_name = st.text_input('Enter book title')
+
+    if book_name:
+
+        recs = recommend_content(book_name, top_n=10)
+
+        if recs.empty:
+            st.write('Book not found in dataset')
+        else:
+            st.dataframe(recs, use_container_width=True)
+
+
+# -----------------------------
+# MARKET BASKET
+# -----------------------------
+if menu == 'Market Basket Analysis':
+
+    st.header('Books Frequently Bought Together')
+
+    min_lift = st.slider('Minimum Lift', 1.0, 10.0, 2.0)
+
+    filtered_rules = rules[
+        (rules['lift'] >= min_lift) &
+        (rules['confidence'] >= 0.3)
+    ]
+
+    st.dataframe(
+        filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']].head(20),
+        use_container_width=True
+    )
+
+
+# -----------------------------
+# TRENDING
+# -----------------------------
+if menu == 'Trending Books':
+
+    st.header('Top 100 Trending Books')
+
+    st.dataframe(trending, use_container_width=True)
+
+
+# -----------------------------
+# ANALYTICS DASHBOARD
+# -----------------------------
+if menu == 'Analytics Dashboard':
+
+    st.header('Dataset Insights from Top 100 Trending Books')
+
+    col1, col2, col3 = st.columns(3)
+
+    # POPULAR BOOKS
+    top_books = trending['book title'].value_counts().head(10)
+
+    fig1, ax1 = plt.subplots()
+    top_books.plot(kind='bar', ax=ax1)
+    ax1.set_title('Most Popular Trending Books')
+    ax1.tick_params(axis='x', rotation=45)
+
+    col1.pyplot(fig1)
+
+
+    # GENRES
+    genre_counts = trending['genre'].value_counts().head(10)
+
+    fig2, ax2 = plt.subplots()
+    genre_counts.plot(kind='bar', ax=ax2)
+    ax2.set_title('Top Genres')
+
+    col2.pyplot(fig2)
+
+
+    # AUTHORS
+    author_counts = trending['author'].value_counts().head(10)
+
+    fig3, ax3 = plt.subplots()
+    author_counts.plot(kind='bar', ax=ax3)
+    ax3.set_title('Top Authors')
+
+    col3.pyplot(fig3)
