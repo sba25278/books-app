@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
-import streamlit as st
 
-import plotly.express as px
+import streamlit as st
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -18,6 +17,7 @@ st.title('Book Recommendation System')
 # -----------------------------
 # LOAD DATA
 # -----------------------------
+@st.cache_data
 def load_data():
     books = pd.read_csv('books_clean.csv')
     trending = pd.read_csv('trending_clean.csv')
@@ -28,19 +28,9 @@ books, trending = load_data()
 
 
 # -----------------------------
-# KPI CARDS (NEW)
-# -----------------------------
-col1, col2, col3, col4 = st.columns(4)
-
-col1.metric('Total Books', len(books))
-col2.metric('Total Users', books['user_id'].nunique())
-col3.metric('Average Rating', round(books['rating'].mean(), 2))
-col4.metric('Trending Titles', trending['book title'].nunique())
-
-
-# -----------------------------
 # CONTENT MODEL
 # -----------------------------
+@st.cache_data
 def build_content_model(df):
 
     df = df.dropna(subset=['content', 'book_title'])
@@ -77,8 +67,9 @@ def recommend_content(title, top_n=10):
 
 
 # -----------------------------
-# BASKET BUILD (MEMORY SAFE)
+# BASKET BUILD (SAFE)
 # -----------------------------
+@st.cache_data
 def build_basket(df):
 
     df = df[df['rating'] >= 4]
@@ -94,7 +85,7 @@ def build_basket(df):
 
     basket = df.groupby(['user_id', 'book_title']).size().unstack(fill_value=0)
 
-    return basket.astype(bool)
+    return basket > 0
 
 
 basket = build_basket(books)
@@ -103,6 +94,7 @@ basket = build_basket(books)
 # -----------------------------
 # APRIORI
 # -----------------------------
+@st.cache_data
 def run_apriori(basket):
 
     freq = apriori(
@@ -112,11 +104,7 @@ def run_apriori(basket):
         low_memory=True
     )
 
-    rules = association_rules(
-        freq,
-        metric='lift',
-        min_threshold=1.0
-    )
+    rules = association_rules(freq, metric='lift', min_threshold=1.0)
 
     return rules
 
@@ -148,10 +136,11 @@ if menu == 'Content-Based Recommendations':
     book_name = st.text_input('Enter book title')
 
     if book_name:
+
         recs = recommend_content(book_name)
 
         if recs.empty:
-            st.warning('Book not found in dataset')
+            st.warning('Book not found')
         else:
             st.dataframe(recs, use_container_width=True)
 
@@ -165,19 +154,16 @@ if menu == 'Market Basket Analysis':
 
     min_lift = st.slider('Minimum Lift', 1.0, 10.0, 2.0)
 
-    filtered_rules = rules[
+    filtered = rules[
         (rules['lift'] >= min_lift) &
         (rules['confidence'] >= 0.3)
     ]
 
-    st.dataframe(
-        filtered_rules[['antecedents', 'consequents', 'support', 'confidence', 'lift']].head(20),
-        use_container_width=True
-    )
+    st.dataframe(filtered[['antecedents', 'consequents', 'support', 'confidence', 'lift']].head(20))
 
 
 # -----------------------------
-# TRENDING (CLEAN VISUALS)
+# TRENDING
 # -----------------------------
 if menu == 'Trending Books':
 
@@ -187,47 +173,25 @@ if menu == 'Trending Books':
 
 
 # -----------------------------
-# ANALYTICS DASHBOARD (FULL UPGRADE)
+# ANALYTICS DASHBOARD (STREAMLIT CHARTS ONLY)
 # -----------------------------
 if menu == 'Analytics Dashboard':
 
-    st.header('Book Engagement Insights')
+    st.header('Trending Books Insights')
 
-    st.write(
-        'This dashboard highlights popularity patterns across books, genres, and authors.'
-    )
+    col1, col2, col3 = st.columns(3)
 
-    # ---------------- TOP BOOKS ----------------
-    st.subheader('Most Popular Books')
+    # POPULAR BOOKS
+    top_books = trending['book title'].value_counts().head(10)
+    col1.subheader('Top Books')
+    col1.bar_chart(top_books)
 
-    top_books = trending['book title'].value_counts().head(10).reset_index()
-    top_books.columns = ['Book', 'Count']
+    # GENRES
+    genre_counts = trending['genre'].value_counts().head(10)
+    col2.subheader('Top Genres')
+    col2.bar_chart(genre_counts)
 
-    fig1 = px.bar(top_books, x='Count', y='Book', orientation='h', text='Count')
-    fig1.update_layout(height=450)
-
-    st.plotly_chart(fig1, use_container_width=True)
-
-
-    # ---------------- GENRES ----------------
-    st.subheader('Top Genres')
-
-    genres = trending['genre'].value_counts().head(10).reset_index()
-    genres.columns = ['Genre', 'Count']
-
-    fig2 = px.bar(genres, x='Count', y='Genre', orientation='h', text='Count')
-    fig2.update_layout(height=450)
-
-    st.plotly_chart(fig2, use_container_width=True)
-
-
-    # ---------------- AUTHORS ----------------
-    st.subheader('Top Authors')
-
-    authors = trending['author'].value_counts().head(10).reset_index()
-    authors.columns = ['Author', 'Count']
-
-    fig3 = px.bar(authors, x='Count', y='Author', orientation='h', text='Count')
-    fig3.update_layout(height=450)
-
-    st.plotly_chart(fig3, use_container_width=True)
+    # AUTHORS
+    author_counts = trending['author'].value_counts().head(10)
+    col3.subheader('Top Authors')
+    col3.bar_chart(author_counts)
