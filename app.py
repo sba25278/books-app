@@ -383,7 +383,7 @@ if st.session_state.page == "trending":
     # ensure numeric price (CRITICAL FIX)
     trending["book price"] = pd.to_numeric(trending["book price"], errors="coerce")
 
-    # split cleaned genre column (from preprocessing step)
+    # split cleaned genre column
     trending["genre_split"] = trending["genre_clean"].astype(str).str.split("|")
 
     trending_exploded = trending.explode("genre_split")
@@ -428,10 +428,32 @@ if st.session_state.page == "trending":
     st.plotly_chart(fig2, use_container_width=True)
 
     # =================================================
-    # TABLE
+    # TABLE (WITH CLEAN GENRE COLUMN IN CORRECT POSITION)
     # =================================================
+
+    trending_display = trending.copy()
+
+    # convert list → readable string
+    trending_display["Genre"] = trending_display["genre_split"].apply(
+        lambda x: ", ".join(x) if isinstance(x, list) else ""
+    )
+
+    # build column order
+    cols = trending_display.columns.tolist()
+
+    # remove unwanted/raw columns from display order
+    for col in ["genre", "genre_clean", "genre_split"]:
+        if col in cols:
+            cols.remove(col)
+
+    # insert Genre right after book title
+    insert_pos = cols.index("book title") + 1
+    cols.insert(insert_pos, "Genre")
+
+    trending_display = trending_display[cols]
+
     st.dataframe(
-        trending.reset_index(drop=True),
+        trending_display.reset_index(drop=True),
         use_container_width=True,
         hide_index=True,
         height=900
