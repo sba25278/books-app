@@ -125,41 +125,52 @@ content_sim, book_idx, df_cb = build_content_model(books)
 # =====================================================
 def recommend_books(title, top_n=10):
 
-    if title not in book_idx:
+    matches = df_cb[
+        df_cb['book_title'] == title
+    ]
+
+    if matches.empty:
         return pd.DataFrame()
 
-    idx = book_idx[title]
+    # use first matching row safely
+    idx = matches.index[0]
 
-    scores = list(enumerate(content_sim[idx]))
+    similarity_scores = list(
+        enumerate(content_sim[idx])
+    )
 
-    scores = sorted(
-        scores,
+    similarity_scores = sorted(
+        similarity_scores,
         key=lambda x: x[1],
         reverse=True
     )[1:top_n + 1]
 
-    indices = [i[0] for i in scores]
+    book_indices = [
+        i[0]
+        for i in similarity_scores
+    ]
 
-    recs = df_cb.iloc[indices][
+    recommendations = df_cb.iloc[
+        book_indices
+    ][
         ['book_title', 'rating', 'categories']
     ].copy()
 
-    recs['similarity'] = [
+    recommendations['similarity'] = [
         round(i[1], 2)
-        for i in scores
+        for i in similarity_scores
     ]
 
-    recs.columns = [
+    recommendations.columns = [
         'Book Title',
         'Reader Rating',
         'Genre',
         'Similarity Score'
     ]
 
-    return recs.drop_duplicates(
+    return recommendations.drop_duplicates(
         subset='Book Title'
     )
-
 
 # =====================================================
 # GENRE RECOMMENDATION FUNCTION
