@@ -370,7 +370,7 @@ if st.session_state.page == "trending":
 
     audio_controls(
         "Top 100 trending books page. This chart shows the top 5 genres in 2023. "
-        "Below is the average price per genre."
+        "Beside it is the average price per genre. Below is a table of the top 100 boks of 2023"
     )
 
 
