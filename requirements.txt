@@ -6,3 +6,4 @@ mlxtend
 plotly
 plotly.express
 pyttsx3
+html

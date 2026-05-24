@@ -366,6 +366,9 @@ if st.session_state.page == "home":
 # try to find more updated version if possible?
 if st.session_state.page == "trending":
 
+    import html
+    from collections import Counter
+
     st.header("Top 100 Trending Books in 2023")
 
     audio_controls(
@@ -377,25 +380,37 @@ if st.session_state.page == "trending":
 
     trending_df = trending.copy()
 
+    # ensure numeric safety
+    trending_df["book price"] = pd.to_numeric(trending_df["book price"], errors="coerce")
+
     # =================================================
     # SAFE MULTI-LABEL AGGREGATION (NO EXPLODE)
     # =================================================
-    from collections import Counter
-
     genre_counter = Counter()
     genre_prices = {}
 
     for _, row in trending_df.iterrows():
+
         genres = row["genre"]
         price = row.get("book price", None)
 
         if isinstance(genres, list):
+
             for g in genres:
 
-                # count genre frequency
+                if not isinstance(g, str):
+                    continue
+
+                # =================================================
+                # CLEAN GENRE (FIXS AMP; HORROR ISSUE)
+                # =================================================
+                g = html.unescape(g)
+                g = g.strip().title()
+
+                # count frequency
                 genre_counter[g] += 1
 
-                # store prices for averaging
+                # store prices
                 if g not in genre_prices:
                     genre_prices[g] = []
 
@@ -466,31 +481,28 @@ if st.session_state.page == "trending":
         st.plotly_chart(fig2, use_container_width=True)
 
     # =================================================
-    # CLEAN TABLE DISPLAY (NO DUPLICATE COLUMNS CRASH)
+    # CLEAN TABLE DISPLAY (SAFE STREAMLIT OUTPUT)
     # =================================================
     trending_display = trending_df.copy()
 
-    # remove any possible duplicate columns
-    trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
+    trending_display = trending_display.loc[
+        :, ~trending_display.columns.duplicated()
+    ].copy()
 
-    # rebuild readable genre column
     trending_display["Genre"] = trending_df["genre"].apply(
         lambda x: ", ".join(x) if isinstance(x, list) else ""
     )
 
-    # safe column ordering
     cols = list(trending_display.columns)
 
-    # remove Genre if it already exists somewhere
+    # remove duplicates safely
     cols = [c for c in cols if c != "Genre"]
 
-    # insert after book title
     insert_pos = cols.index("book title") + 1
     cols.insert(insert_pos, "Genre")
 
     trending_display = trending_display[cols]
 
-    # final safety check
     assert trending_display.columns.is_unique, "Duplicate columns detected!"
 
     st.dataframe(
