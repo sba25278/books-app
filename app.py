@@ -5,7 +5,7 @@ import plotly.express as px
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
+import pyttsx3   
 
 # =====================================================
 # PAGE SETUP
@@ -15,59 +15,52 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("Book Analytics Dashboard")
-
+st.title("📚 Book Analytics Dashboard")
 
 # =====================================================
-# ACCESSIBLE THEME + GRAPH FRAMES (65+ FRIENDLY)
+# ACCESSIBLE THEME (65+ FRIENDLY)
 # =====================================================
-st.markdown(
-    """
-    <style>
+st.markdown("""
+<style>
 
-    .stApp {
-        background-color: #f7f3ea;
-    }
+.stApp {
+    background-color: #f7f3ea;
+}
 
-    h1, h2, h3 {
-        color: #2f2f2f;
-    }
+h1, h2, h3 {
+    color: #2f2f2f;
+}
 
-    .book-card {
-        background-color: white;
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 10px;
-        border: 1px solid #e6d9c8;
-        box-shadow: 1px 1px 6px rgba(0,0,0,0.05);
-    }
+.book-card {
+    background-color: white;
+    padding: 15px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border: 1px solid #e6d9c8;
+    box-shadow: 1px 1px 6px rgba(0,0,0,0.05);
+}
 
-    .graph-frame {
-        background-color: white;
-        padding: 15px;
-        border-radius: 12px;
-        border: 1px solid #e6d9c8;
-        box-shadow: 2px 2px 10px rgba(0,0,0,0.06);
-        margin-bottom: 20px;
-    }
+/* FRAME STYLE (IMPORTANT FIX) */
+.graph-frame {
+    background-color: white;
+    padding: 15px;
+    border-radius: 12px;
+    border: 1px solid #e6d9c8;
+    box-shadow: 2px 2px 10px rgba(0,0,0,0.06);
+    margin-bottom: 20px;
+}
 
-    div.stButton > button {
-        background-color: #4a6fa5;
-        color: white;
-        font-size: 18px;
-        border-radius: 8px;
-        padding: 10px;
-        width: 100%;
-    }
+div.stButton > button {
+    background-color: #4a6fa5;
+    color: white;
+    font-size: 18px;
+    border-radius: 8px;
+    padding: 10px;
+    width: 100%;
+}
 
-    div.stButton > button:hover {
-        background-color: #3c5c8c;
-    }
-
-    </style>
-    """,
-    unsafe_allow_html=True
-)
+</style>
+""", unsafe_allow_html=True)
 
 
 # =====================================================
@@ -77,21 +70,17 @@ st.markdown(
 def load_data():
     books = pd.read_csv("books_clean.csv")
     trending = pd.read_csv("trending_clean.csv")
-
     books["timestamp"] = pd.to_datetime(books["timestamp"], errors="coerce")
-
     return books, trending
-
 
 books, trending = load_data()
 
 
 # =====================================================
-# CONTENT MODEL
+# MODEL
 # =====================================================
 @st.cache_data
 def build_model(df):
-
     df = df.dropna(subset=["content", "book_title"]).copy()
     df = df.sample(min(5000, len(df)), random_state=42).reset_index(drop=True)
 
@@ -112,23 +101,31 @@ content_sim, book_idx, df_cb = build_model(books)
 
 
 # =====================================================
-# HIGH-CONTRAST 65+ COLOUR PALETTE
-# (red/orange/brown/black/grey - high readability)
+# COLOUR PALETTE (HIGH CONTRAST 65+ FRIENDLY)
 # =====================================================
-ACCESSIBLE_COLOURS = [
+COLOURS = [
     "#c94c4c",  
     "#e07a5f",  
     "#f2a65a",  
-    "#f4c095",  
-    "#c06c84",  
     "#6a994e",  
+    "#8b5e3c",  
+    "#c06c84",  
     "#8e7cc3",  
-    "#6f4e37"  
+    "#2f2f2f"   
 ]
 
 
 # =====================================================
-# RECOMMENDATION FUNCTION (NO DUPLICATES)
+# TEXT TO SPEECH FUNCTION
+# =====================================================
+def speak(text):
+    engine = pyttsx3.init()
+    engine.say(text)
+    engine.runAndWait()
+
+
+# =====================================================
+# RECOMMENDATIONS (NO DUPLICATES)
 # =====================================================
 def recommend_books(title, top_n=5):
 
@@ -156,9 +153,6 @@ def recommend_books(title, top_n=5):
     return df_cb.iloc[results][["book_title", "rating", "categories"]].reset_index(drop=True)
 
 
-# =====================================================
-# GENRE RECOMMENDATION
-# =====================================================
 def recommend_by_genre(genre):
 
     df = books[
@@ -180,7 +174,7 @@ with col1:
     home_btn = st.button("Home")
 
 with col2:
-    trending_btn = st.button("Top 100 Trending Books")
+    trending_btn = st.button("Trending")
 
 if "page" not in st.session_state:
     st.session_state.page = "home"
@@ -193,20 +187,25 @@ if trending_btn:
 
 
 # =====================================================
-# CARD DISPLAY FUNCTION
+# CARD DISPLAY
 # =====================================================
 def show_cards(df):
+    text_to_read = ""
+
     for _, row in df.iterrows():
-        st.markdown(
-            f"""
-            <div class="book-card">
-                <b>{row['book_title']}</b><br>
-                  Rating: {row['rating']}<br>
-                  Genre: {row['categories']}
-            </div>
-            """,
-            unsafe_allow_html=True
-        )
+        card_text = f"{row['book_title']}. Rating {row['rating']}. Genre {row['categories']}"
+
+        text_to_read += card_text + ". "
+
+        st.markdown(f"""
+        <div class="book-card">
+            <b>{row['book_title']}</b><br>
+              Rating: {row['rating']}<br>
+              Genre: {row['categories']}
+        </div>
+        """, unsafe_allow_html=True)
+
+    return text_to_read
 
 
 # =====================================================
@@ -215,9 +214,7 @@ def show_cards(df):
 if st.session_state.page == "home":
 
     st.header("Overview")
-    st.divider()
 
-    # ---------------- INPUTS ----------------
     col1, col2 = st.columns(2)
 
     with col1:
@@ -232,28 +229,32 @@ if st.session_state.page == "home":
             sorted(books["categories"].dropna().unique())
         )
 
-    # ---------------- RECOMMENDATIONS ----------------
+    # ---------------- RECS ----------------
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("Book Recommendations")
         if selected_book:
-            show_cards(recommend_books(selected_book))
+            recs = recommend_books(selected_book)
+            spoken_text = show_cards(recs)
+
+            if st.button("🔊 Read Book Recommendations"):
+                speak(spoken_text)
 
     with col2:
         st.subheader("Genre Recommendations")
         if selected_genre:
-            show_cards(recommend_by_genre(selected_genre))
+            recs = recommend_by_genre(selected_genre)
+            show_cards(recs)
 
     st.divider()
 
     # =================================================
-    # TOP GENRES (ACCESSIBLE COLOURS + NO AXIS CLUTTER)
+    # TOP GENRES (FRAME FIXED)
     # =================================================
-    col1, col2 = st.columns(2)
-
-    with col1:
+    with st.container():
         st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
+
         st.subheader("Top Genres")
 
         g = books["categories"].value_counts().head(8).reset_index()
@@ -264,7 +265,7 @@ if st.session_state.page == "home":
             x="Genre",
             y="Count",
             color="Genre",
-            color_discrete_sequence=ACCESSIBLE_COLOURS
+            color_discrete_sequence=COLOURS
         )
 
         fig.update_layout(
@@ -275,22 +276,43 @@ if st.session_state.page == "home":
         )
 
         st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
 
-    with col2:
+        st.markdown("</div>", unsafe_allow_html=True)
+
+    # =================================================
+    # TREND OVER TIME + SLIDER
+    # =================================================
+    with st.container():
         st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
-        st.subheader("Top Authors")
 
-        a = books["store"].value_counts().head(8).reset_index()
-        a.columns = ["Author", "Count"]
+        st.subheader("Reading Trends Over Time")
 
-        fig = px.bar(
-            a,
-            x="Author",
-            y="Count",
-            color="Author",
-            color_discrete_sequence=ACCESSIBLE_COLOURS
+        clean = books.dropna(subset=["timestamp", "categories"]).copy()
+        top5 = clean["categories"].value_counts().head(5).index
+        trend = clean[clean["categories"].isin(top5)].copy()
+
+        min_date = clean["timestamp"].min().date()
+        max_date = clean["timestamp"].max().date()
+
+        date_range = st.slider(
+            "Select time period",
+            min_value=min_date,
+            max_value=max_date,
+            value=(min_date, max_date)
         )
+
+        start_date, end_date = date_range
+
+        trend = trend[
+            (trend["timestamp"].dt.date >= start_date) &
+            (trend["timestamp"].dt.date <= end_date)
+        ]
+
+        trend["month"] = trend["timestamp"].dt.to_period("M").astype(str)
+
+        chart = trend.groupby(["month", "categories"]).size().unstack(fill_value=0)
+
+        fig = px.line(chart, markers=True, color_discrete_sequence=COLOURS)
 
         fig.update_layout(
             xaxis=dict(showticklabels=False, showgrid=False),
@@ -300,53 +322,8 @@ if st.session_state.page == "home":
         )
 
         st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
 
-    st.divider()
-
-    # =================================================
-    # TREND OVER TIME + SLIDER (NEW)
-    # =================================================
-    st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
-    st.subheader("Reading Trends Over Time")
-
-    clean = books.dropna(subset=["timestamp", "categories"]).copy()
-
-    top5 = clean["categories"].value_counts().head(5).index
-    trend = clean[clean["categories"].isin(top5)].copy()
-
-    trend["month"] = trend["timestamp"].dt.to_period("M").astype(str)
-
-    min_date = clean["timestamp"].min().date()
-    max_date = clean["timestamp"].max().date()
-
-    date_range = st.slider(
-        "Select time period",
-        min_value=min_date,
-        max_value=max_date,
-        value=(min_date, max_date)
-    )
-
-    start_date, end_date = date_range
-
-    trend = trend[
-        (trend["timestamp"].dt.date >= start_date) &
-        (trend["timestamp"].dt.date <= end_date)
-    ]
-
-    chart = trend.groupby(["month", "categories"]).size().unstack(fill_value=0)
-
-    fig = px.line(chart, markers=True, color_discrete_sequence=ACCESSIBLE_COLOURS)
-
-    fig.update_layout(
-        xaxis=dict(showticklabels=False, showgrid=False),
-        yaxis=dict(showgrid=False),
-        plot_bgcolor="white",
-        margin=dict(l=10, r=10, t=30, b=10)
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
 
 # =====================================================
