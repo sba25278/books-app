@@ -100,6 +100,39 @@ ACCESSIBLE_COLOURS = [
 ]
 
 # =====================================================
+# TEXT-TO-SPEECH (SAFE STREAMLIT VERSION)
+# =====================================================
+def get_speech_text():
+    return (
+        "Book Analytics Dashboard. "
+        "You can select a book or genre to see recommendations. "
+        "Top genres and authors are shown as charts. "
+        "Reading trends over time show how genres change across years."
+    )
+
+st.markdown("""
+<script>
+function speakText(text) {
+    const msg = new SpeechSynthesisUtterance(text);
+    msg.rate = 0.9;
+    msg.pitch = 1;
+    msg.volume = 1;
+    window.speechSynthesis.speak(msg);
+}
+</script>
+""", unsafe_allow_html=True)
+
+if st.button("🔊 Read this page"):
+    st.markdown(
+        f"""
+        <script>
+            speakText("{get_speech_text()}");
+        </script>
+        """,
+        unsafe_allow_html=True
+    )
+
+# =====================================================
 # RECOMMENDATIONS
 # =====================================================
 def recommend_books(title, top_n=5):
@@ -208,9 +241,9 @@ if st.session_state.page == "home":
 
     st.divider()
 
-    # =====================================================
+    # =================================================
     # SIDE-BY-SIDE GRAPHS
-    # =====================================================
+    # =================================================
     col1, col2 = st.columns(2)
 
     with col1:
@@ -259,20 +292,18 @@ if st.session_state.page == "home":
 
     st.divider()
 
-    # =====================================================
-    # TREND OVER TIME (FIXED: YEARS + SLIDER)
-    # =====================================================
+    # =================================================
+    # TREND OVER TIME (YEAR + SLIDER FIX)
+    # =================================================
     st.subheader("Reading Trends Over Time")
 
     clean = books.dropna(subset=["timestamp", "categories"]).copy()
 
-    # convert to YEAR instead of month
     clean["year"] = clean["timestamp"].dt.year
 
     top5 = clean["categories"].value_counts().head(5).index
     trend = clean[clean["categories"].isin(top5)].copy()
 
-    # slider
     min_year = int(clean["year"].min())
     max_year = int(clean["year"].max())
 
@@ -299,7 +330,7 @@ if st.session_state.page == "home":
     )
 
     fig.update_layout(
-        xaxis=dict(showgrid=False, title="Year"),
+        xaxis=dict(title="Year", showgrid=False),
         yaxis=dict(showgrid=False),
         plot_bgcolor="white"
     )
