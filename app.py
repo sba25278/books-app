@@ -8,6 +8,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
 
+# =====================================================
+# PAGE SETUP
+# =====================================================
 st.set_page_config(
     page_title="Book Dashboard",
     layout="wide"
@@ -15,7 +18,10 @@ st.set_page_config(
 
 st.title("Book Analytics Dashboard")
 
-# Accessible theme
+
+# =====================================================
+# ACCESSIBLE THEME
+# =====================================================
 st.markdown("""
 <style>
 
@@ -49,6 +55,9 @@ div.stButton > button {
 """, unsafe_allow_html=True)
 
 
+# =====================================================
+# LOAD DATA
+# =====================================================
 @st.cache_data
 def load_data():
     books = pd.read_csv("books_clean.csv")
@@ -59,6 +68,9 @@ def load_data():
 books, trending = load_data()
 
 
+# =====================================================
+# MODEL
+# =====================================================
 @st.cache_data
 def build_model(df):
     df = df.dropna(subset=["content", "book_title"]).copy()
@@ -79,6 +91,9 @@ def build_model(df):
 content_sim, book_idx, df_cb = build_model(books)
 
 
+# =====================================================
+# COLOURS
+# =====================================================
 ACCESSIBLE_COLOURS = [
     "#c94c4c",
     "#e07a5f",
@@ -92,7 +107,7 @@ ACCESSIBLE_COLOURS = [
 
 
 # =====================================================
-# AUDIO SYSTEM (REUSABLE)
+# TEXT-TO-SPEECH CONTROLS (FULL)
 # =====================================================
 def audio_controls(text):
 
@@ -132,7 +147,7 @@ def audio_controls(text):
 
 
 # =====================================================
-# RECOMMENDATIONS
+# RECOMMENDATIONS FUNCTION (CONTENT BASED)
 # =====================================================
 def recommend_books(title, top_n=5):
 
@@ -160,6 +175,9 @@ def recommend_books(title, top_n=5):
     return df_cb.iloc[results][["book_title", "rating", "categories"]].reset_index(drop=True)
 
 
+# =====================================================
+# GENRE RECOMMENDATION FUNCTION
+# =====================================================
 def recommend_by_genre(genre):
 
     df = books[
@@ -194,7 +212,7 @@ if trending_btn:
 
 
 # =====================================================
-# CARD DISPLAY
+# CARD DISPLAY FUNCTION
 # =====================================================
 def show_cards(df):
     for _, row in df.iterrows():
@@ -215,10 +233,10 @@ if st.session_state.page == "home":
     st.header("Overview")
     st.divider()
 
-    # 🔊 PAGE OVERVIEW BUTTON (HOME)
+    # 🔊 PAGE OVERVIEW AUDIO
     audio_controls(
-        "Book analytics dashboard overview. "
-        "This page shows book recommendations, genre recommendations, top genres, top authors, and reading trends over time."
+        "Book analytics dashboard home page. "
+        "This page includes book recommendations, genre recommendations, top genres, top authors, and reading trends over time."
     )
 
     col1, col2 = st.columns(2)
@@ -259,6 +277,10 @@ if st.session_state.page == "home":
 
     st.divider()
 
+
+    # =================================================
+    # TOP GENRES + AUTHORS
+    # =================================================
     col1, col2 = st.columns(2)
 
     with col1:
@@ -307,6 +329,10 @@ if st.session_state.page == "home":
 
     st.divider()
 
+
+    # =================================================
+    # TREND OVER TIME
+    # =================================================
     st.subheader("Reading Trends Over Time")
 
     clean = books.dropna(subset=["timestamp", "categories"]).copy()
@@ -353,9 +379,9 @@ if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
 
-    # 🔊 PAGE OVERVIEW BUTTON (TRENDING PAGE)
+    # 🔊 PAGE OVERVIEW AUDIO
     audio_controls(
-        "Top 100 trending books page. This table shows the most popular books ranked by current trends."
+        "Top 100 trending books page. This table shows the most popular books currently trending."
     )
 
     st.dataframe(
