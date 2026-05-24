@@ -16,7 +16,6 @@ st.set_page_config(
 st.title("Book Analytics Dashboard")
 
 # Accessible theme
-# https://dashboards.mysidewalk.com/style-guide-for-dashboards/bar-charts-old
 st.markdown("""
 <style>
 
@@ -49,7 +48,7 @@ div.stButton > button {
 </style>
 """, unsafe_allow_html=True)
 
-# https://medium.com/@verinamk/streamlit-for-beginners-build-your-first-dashboard-58b764a62a2d
+
 @st.cache_data
 def load_data():
     books = pd.read_csv("books_clean.csv")
@@ -59,9 +58,7 @@ def load_data():
 
 books, trending = load_data()
 
-# big app + lots of data= using @ stops very long load tim
-# https://docs.streamlit.io/develop/concepts/architecture/caching
-# https://medium.com/@heyamit10/benefits-of-using-streamlit-cache-for-faster-apps-006632d673ef
+
 @st.cache_data
 def build_model(df):
     df = df.dropna(subset=["content", "book_title"]).copy()
@@ -81,8 +78,7 @@ def build_model(df):
 
 content_sim, book_idx, df_cb = build_model(books)
 
-# https://davidmathlogic.com/colorblind/#%23D81B60-%231E88E5-%23FFC107-%23004D40
-# https://dashboards.mysidewalk.com/style-guide-for-dashboards/color
+
 ACCESSIBLE_COLOURS = [
     "#c94c4c",
     "#e07a5f",
@@ -94,8 +90,10 @@ ACCESSIBLE_COLOURS = [
     "#2f2f2f"
 ]
 
-#https://discuss.streamlit.io/t/text-to-speech-in-streamlt-cloud/66848
-# https://medium.com/@pavlo_sydorenko/add-text-to-speech-to-your-web-app-with-5-lines-of-python-code-8c4707f2dc93
+
+# =====================================================
+# AUDIO SYSTEM (REUSABLE)
+# =====================================================
 def audio_controls(text):
 
     html_code = f"""
@@ -132,8 +130,10 @@ def audio_controls(text):
 
     components.html(html_code, height=120)
 
-# recs : book and genre based
-# using content based due to data sparsity
+
+# =====================================================
+# RECOMMENDATIONS
+# =====================================================
 def recommend_books(title, top_n=5):
 
     if title not in book_idx:
@@ -171,7 +171,10 @@ def recommend_by_genre(genre):
 
     return df[["book_title", "rating", "categories"]].reset_index(drop=True)
 
-# buttons
+
+# =====================================================
+# NAVIGATION
+# =====================================================
 col1, col2 = st.columns(2)
 
 with col1:
@@ -189,8 +192,10 @@ if home_btn:
 if trending_btn:
     st.session_state.page = "trending"
 
-# card display looks cleaner
-# https://discuss.streamlit.io/t/new-component-streamlit-product-card/113494
+
+# =====================================================
+# CARD DISPLAY
+# =====================================================
 def show_cards(df):
     for _, row in df.iterrows():
         st.markdown(f"""
@@ -201,11 +206,20 @@ def show_cards(df):
         </div>
         """, unsafe_allow_html=True)
 
-# main page
+
+# =====================================================
+# HOME PAGE
+# =====================================================
 if st.session_state.page == "home":
 
     st.header("Overview")
     st.divider()
+
+    # 🔊 PAGE OVERVIEW BUTTON (HOME)
+    audio_controls(
+        "Book analytics dashboard overview. "
+        "This page shows book recommendations, genre recommendations, top genres, top authors, and reading trends over time."
+    )
 
     col1, col2 = st.columns(2)
 
@@ -229,7 +243,9 @@ if st.session_state.page == "home":
             rec = recommend_books(selected_book)
             show_cards(rec)
 
-            audio_controls("Content based recommendations. " + rec.to_string(index=False))
+            audio_controls(
+                "Content based recommendations. " + rec.to_string(index=False)
+            )
 
     with col2:
         st.subheader("Genre Recommendations")
@@ -237,12 +253,12 @@ if st.session_state.page == "home":
             rec2 = recommend_by_genre(selected_genre)
             show_cards(rec2)
 
-            audio_controls("Genre based recommendations. " + rec2.to_string(index=False))
+            audio_controls(
+                "Genre based recommendations. " + rec2.to_string(index=False)
+            )
 
     st.divider()
 
-    # Graphs to show top genres and authors - impo for rec system
-    # counts based
     col1, col2 = st.columns(2)
 
     with col1:
@@ -260,11 +276,7 @@ if st.session_state.page == "home":
         )
 
         fig.update_layout(
-            xaxis=dict(
-                showticklabels=False,
-                showgrid=False,
-                title=""
-            ),
+            xaxis=dict(showticklabels=False, showgrid=False),
             yaxis=dict(showgrid=False),
             plot_bgcolor="white"
         )
@@ -286,11 +298,7 @@ if st.session_state.page == "home":
         )
 
         fig.update_layout(
-            xaxis=dict(
-                showticklabels=False,
-                showgrid=False,
-                title=""
-            ),
+            xaxis=dict(showticklabels=False, showgrid=False),
             yaxis=dict(showgrid=False),
             plot_bgcolor="white"
         )
@@ -299,7 +307,6 @@ if st.session_state.page == "home":
 
     st.divider()
 
-    # trend over time - more complex but good for some
     st.subheader("Reading Trends Over Time")
 
     clean = books.dropna(subset=["timestamp", "categories"]).copy()
@@ -338,10 +345,18 @@ if st.session_state.page == "home":
 
     st.plotly_chart(fig, use_container_width=True)
 
-# Using top 100 books df to illustrate top books atm according to nyt
+
+# =====================================================
+# TRENDING PAGE
+# =====================================================
 if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
+
+    # 🔊 PAGE OVERVIEW BUTTON (TRENDING PAGE)
+    audio_controls(
+        "Top 100 trending books page. This table shows the most popular books ranked by current trends."
+    )
 
     st.dataframe(
         trending.reset_index(drop=True),
