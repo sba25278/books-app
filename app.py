@@ -378,14 +378,10 @@ if st.session_state.page == "trending":
         "Below is a table of the most popular books currently trending."
     )
 
-    st.subheader("Top 5 Genres + Average Price per Genre")
 
     df = trending.copy()
     df["book price"] = pd.to_numeric(df["book price"], errors="coerce")
 
-    # =================================================
-    # CLEAN + FLATTEN GENRES
-    # =================================================
     genre_counter = Counter()
     genre_price_map = {}
 
@@ -412,17 +408,11 @@ if st.session_state.page == "trending":
             if pd.notna(price):
                 genre_price_map[g].append(price)
 
-    # =================================================
-    # TOP GENRES
-    # =================================================
     top_genres = pd.DataFrame(
         genre_counter.items(),
         columns=["Genre", "Count"]
     ).sort_values("Count", ascending=False).head(5)
 
-    # =================================================
-    # AVG PRICE
-    # =================================================
     avg_price = pd.DataFrame({
         "Genre": list(genre_price_map.keys()),
         "Avg Price": [
@@ -431,9 +421,6 @@ if st.session_state.page == "trending":
         ]
     }).sort_values("Avg Price", ascending=False).head(5)
 
-    # =================================================
-    # CHARTS (WITH TITLES + COLOURS)
-    # =================================================
     col1, col2 = st.columns(2)
 
     with col1:
@@ -472,9 +459,7 @@ if st.session_state.page == "trending":
 
         st.plotly_chart(fig2, use_container_width=True)
 
-    # =================================================
-    # TABLE
-    # =================================================
+# table
     df_display = df.copy()
 
     df_display["Genre"] = df_display["genre"].apply(
