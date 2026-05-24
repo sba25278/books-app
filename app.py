@@ -370,16 +370,22 @@ if st.session_state.page == "trending":
 
     # 🔊 PAGE OVERVIEW AUDIO
     audio_controls(
-        "Top 100 trending books page. This chart shows the topp 5 genres in 2023. This table shows the most popular books currently trending."
+        "Top 100 trending books page. This chart shows the top 5 genres in 2023. "
+        "Below is a table of the most popular books currently trending."
     )
 
-    st.subheader("Top 100 books in 2023")
-=
-    trending = trending.copy()
-    trending["book price"] = pd.to_numeric(trending["book price"], errors="coerce")
+    st.subheader("Top 5 Genres (by frequency)")
 
-    trending["genre_split"] = (
-        trending["genre"]
+    trending_df = trending.copy()
+
+    # ensure numeric
+    trending_df["book price"] = pd.to_numeric(trending_df["book price"], errors="coerce")
+
+    # =================================================
+    # CLEAN + SPLIT GENRES (ROBUST)
+    # =================================================
+    trending_df["genre_split"] = (
+        trending_df["genre"]
         .astype(str)
         .str.lower()
         .str.replace("&", "|", regex=False)
@@ -388,22 +394,26 @@ if st.session_state.page == "trending":
         .str.split("|")
     )
 
-    trending_exploded = trending.explode("genre_split")
+    # explode
+    exploded = trending_df.explode("genre_split")
 
-    trending_exploded["genre_split"] = trending_exploded["genre_split"].str.strip()
+    # clean whitespace + remove junk
+    exploded["genre_split"] = exploded["genre_split"].str.strip()
 
-    trending_exploded = trending_exploded[
-        trending_exploded["genre_split"].notna() &
-        (trending_exploded["genre_split"] != "") &
-        (~trending_exploded["genre_split"].isin(["and", "&"]))
+    exploded = exploded[
+        exploded["genre_split"].notna()
+        & (exploded["genre_split"] != "")
+        & (~exploded["genre_split"].isin(["and", "&"]))
     ]
 
-    trending_exploded = trending_exploded.drop_duplicates(
-        subset=["book title", "genre_split"]
-    )
+    # remove duplicates (important for correctness)
+    exploded = exploded.drop_duplicates(subset=["book title", "genre_split"])
 
+    # =================================================
+    # TOP 5 GENRES CHART
+    # =================================================
     top_genres = (
-        trending_exploded["genre_split"]
+        exploded["genre_split"]
         .value_counts()
         .head(5)
         .reset_index()
@@ -411,7 +421,7 @@ if st.session_state.page == "trending":
 
     top_genres.columns = ["Genre", "Count"]
 
-    fig2 = px.bar(
+    fig = px.bar(
         top_genres,
         x="Genre",
         y="Count",
@@ -419,23 +429,31 @@ if st.session_state.page == "trending":
         color_discrete_sequence=ACCESSIBLE_COLOURS
     )
 
-    fig2.update_layout(
+    fig.update_layout(
         xaxis=dict(showticklabels=False, showgrid=False, title=""),
         yaxis=dict(showgrid=False),
-        plot_bgcolor="white",
-        margin=dict(l=10, r=10, t=20, b=10)
+        plot_bgcolor="white"
     )
 
-    st.plotly_chart(fig2, use_container_width=True)
+    st.plotly_chart(fig, use_container_width=True)
 
-    
-    trending_display = trending.copy()
+    # =================================================
+    # CLEAN TABLE DISPLAY (SAFE + CONSISTENT)
+    # =================================================
+    trending_display = trending_df.copy()
+
+    # prevent duplicate columns crash
     trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
-    trending_display["genre_split"] = trending_display["genre"]
-    trending_display["Genre"] = trending_display["genre_split"].astype(str)
+
+    # optional: show cleaned genre as readable string
+    trending_display["Genre"] = trending_display["genre_split"].apply(
+        lambda x: ", ".join(x) if isinstance(x, list) else ""
+    )
+
+    # reorder columns
     cols = trending_display.columns.tolist()
 
-    for col in ["Genre"]:
+    for col in ["genre", "genre_split"]:
         if col in cols:
             cols.remove(col)
 
