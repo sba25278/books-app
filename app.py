@@ -367,6 +367,8 @@ if st.session_state.page == "home":
 if st.session_state.page == "trending":
 
     import html
+    import pandas as pd
+    import plotly.express as px
     from collections import Counter
 
     st.header("Top 100 Trending Books in 2023")
@@ -384,41 +386,45 @@ if st.session_state.page == "trending":
     trending_df["book price"] = pd.to_numeric(trending_df["book price"], errors="coerce")
 
     # =================================================
-    # SAFE MULTI-LABEL AGGREGATION (NO EXPLODE)
+    # SAFE MULTI-LABEL AGGREGATION
     # =================================================
     genre_counter = Counter()
     genre_prices = {}
+
+    def clean_genre(g):
+        if not isinstance(g, str):
+            return None
+        g = html.unescape(g)          # fixes &amp;
+        g = g.replace("&", " ")       # extra safety
+        g = g.strip().title()
+        return g if g else None
 
     for _, row in trending_df.iterrows():
 
         genres = row["genre"]
         price = row.get("book price", None)
 
+        # handle list OR string safely
         if isinstance(genres, list):
+            genre_list = genres
+        else:
+            genre_list = str(genres).split("|")
 
-            for g in genres:
+        for g in genre_list:
+            g = clean_genre(g)
+            if not g:
+                continue
 
-                if not isinstance(g, str):
-                    continue
+            genre_counter[g] += 1
 
-                # =================================================
-                # CLEAN GENRE (FIXS AMP; HORROR ISSUE)
-                # =================================================
-                g = html.unescape(g)
-                g = g.strip().title()
+            if g not in genre_prices:
+                genre_prices[g] = []
 
-                # count frequency
-                genre_counter[g] += 1
-
-                # store prices
-                if g not in genre_prices:
-                    genre_prices[g] = []
-
-                if pd.notna(price):
-                    genre_prices[g].append(price)
+            if pd.notna(price):
+                genre_prices[g].append(price)
 
     # =================================================
-    # TOP GENRES (COUNT)
+    # TOP GENRES CHART
     # =================================================
     top_genres = (
         pd.DataFrame(genre_counter.items(), columns=["Genre", "Count"])
@@ -427,22 +433,18 @@ if st.session_state.page == "trending":
     )
 
     # =================================================
-    # AVERAGE PRICE PER GENRE
+    # AVG PRICE CHART
     # =================================================
-    avg_price = (
-        pd.DataFrame({
-            "Genre": list(genre_prices.keys()),
-            "Avg Price": [
-                sum(v) / len(v) if len(v) > 0 else 0
-                for v in genre_prices.values()
-            ]
-        })
-        .sort_values("Avg Price", ascending=False)
-        .head(5)
-    )
+    avg_price = pd.DataFrame({
+        "Genre": list(genre_prices.keys()),
+        "Avg Price": [
+            sum(v) / len(v) if len(v) > 0 else 0
+            for v in genre_prices.values()
+        ]
+    }).sort_values("Avg Price", ascending=False).head(5)
 
     # =================================================
-    # SIDE-BY-SIDE CHARTS
+    # SIDE BY SIDE CHARTS
     # =================================================
     col1, col2 = st.columns(2)
 
@@ -454,13 +456,11 @@ if st.session_state.page == "trending":
             color="Genre",
             color_discrete_sequence=ACCESSIBLE_COLOURS
         )
-
         fig1.update_layout(
             xaxis=dict(showticklabels=False, showgrid=False, title=""),
             yaxis=dict(showgrid=False),
             plot_bgcolor="white"
         )
-
         st.plotly_chart(fig1, use_container_width=True)
 
     with col2:
@@ -471,39 +471,41 @@ if st.session_state.page == "trending":
             color="Genre",
             color_discrete_sequence=ACCESSIBLE_COLOURS
         )
-
         fig2.update_layout(
             xaxis=dict(showticklabels=False, showgrid=False, title=""),
             yaxis=dict(showgrid=False),
             plot_bgcolor="white"
         )
-
         st.plotly_chart(fig2, use_container_width=True)
 
     # =================================================
-    # CLEAN TABLE DISPLAY (SAFE STREAMLIT OUTPUT)
+    # CLEAN TABLE (NO DUPLICATE COLUMNS)
     # =================================================
     trending_display = trending_df.copy()
 
-    trending_display = trending_display.loc[
-        :, ~trending_display.columns.duplicated()
-    ].copy()
-
-    trending_display["Genre"] = trending_df["genre"].apply(
-        lambda x: ", ".join(x) if isinstance(x, list) else ""
+    # ALWAYS remove any old Genre columns first
+    trending_display = trending_display.drop(
+        columns=[c for c in trending_display.columns if c.lower() == "genre"],
+        errors="ignore"
     )
 
+    # rebuild clean genre column
+    def format_genre(x):
+        if isinstance(x, list):
+            return ", ".join([clean_genre(i) for i in x if clean_genre(i)])
+        return ""
+
+    trending_display["Genre"] = trending_df["genre"].apply(format_genre)
+
+    # enforce unique columns (prevents Streamlit crash)
+    trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
+
+    # column ordering
     cols = list(trending_display.columns)
-
-    # remove duplicates safely
     cols = [c for c in cols if c != "Genre"]
-
-    insert_pos = cols.index("book title") + 1
-    cols.insert(insert_pos, "Genre")
+    cols.insert(cols.index("book title") + 1, "Genre")
 
     trending_display = trending_display[cols]
-
-    assert trending_display.columns.is_unique, "Duplicate columns detected!"
 
     st.dataframe(
         trending_display,
