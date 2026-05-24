@@ -115,7 +115,7 @@ content_sim, book_idx, df_cb = build_model(books)
 # HIGH-CONTRAST 65+ COLOUR PALETTE
 # (red/orange/brown/black/grey - high readability)
 # =====================================================
-ACCESSIBLE_COLORS = [
+ACCESSIBLE_COLOURS = [
     "#c94c4c",  
     "#e07a5f",  
     "#f2a65a",  
