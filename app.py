@@ -18,41 +18,43 @@ st.set_page_config(
 st.title('Book Discovery Platform')
 
 
-# ---------------- WARM CREAM THEME ----------------
+# =====================================================
+# SENIOR-FRIENDLY STYLE
+# =====================================================
 st.markdown(
     """
     <style>
 
     .stApp {
-        background-color: #fbf3e6;  /* lighter cream */
+        background-color: #fbf3e6;
     }
 
-    h1, h2, h3 {
+    h1 {
+        color: #4a3324;
+        font-size: 42px;
+    }
+
+    h2, h3 {
         color: #5b4636;
+        font-size: 28px;
     }
 
-    p, div {
-        font-size: 18px;
+    p, div, label {
+        font-size: 20px;
         color: #3d2b1f;
     }
 
     div.stButton > button {
         background-color: #c9895b;
         color: white;
-        font-size: 22px;
+        font-size: 20px;
         border-radius: 12px;
-        padding: 14px;
+        padding: 12px;
         width: 100%;
-        border: none;
     }
 
     div.stButton > button:hover {
         background-color: #a96f45;
-    }
-
-    /* hide dataframe index globally */
-    [data-testid="stDataFrame"] div[role="columnheader"]:first-child {
-        display: none;
     }
 
     </style>
@@ -79,7 +81,7 @@ books, trending = load_data()
 
 
 # =====================================================
-# CONTENT MODEL (FIXED INDEXING)
+# CONTENT MODEL (SAFE)
 # =====================================================
 @st.cache_data
 def build_content_model(df):
@@ -93,7 +95,6 @@ def build_content_model(df):
 
     sim = cosine_similarity(tfidf_matrix)
 
-    # stable index mapping (no duplicate collapse issues)
     book_index = df.reset_index().set_index('book_title')['index'].to_dict()
 
     return sim, book_index, df
@@ -103,18 +104,16 @@ content_sim, book_idx, df_cb = build_content_model(books)
 
 
 # =====================================================
-# RECOMMENDATION FUNCTION (SAFE)
+# RECOMMENDATION FUNCTION
 # =====================================================
-def recommend_books(title, top_n=10):
+def recommend_books(title, top_n=5):
 
     if title not in book_idx:
         return pd.DataFrame()
 
     idx = book_idx[title]
 
-    sim_vector = content_sim[idx].flatten()
-
-    scores = list(enumerate(sim_vector))
+    scores = list(enumerate(content_sim[idx].flatten()))
 
     scores = sorted(
         scores,
@@ -128,9 +127,9 @@ def recommend_books(title, top_n=10):
 
     recs['similarity'] = [round(float(i[1]), 2) for i in scores]
 
-    recs.columns = ['Book Title', 'Reader Rating', 'Genre', 'Similarity Score']
+    recs.columns = ['Book Title', 'Rating', 'Genre', 'Match Score']
 
-    return recs.drop_duplicates(subset='Book Title').reset_index(drop=True)
+    return recs.reset_index(drop=True)
 
 
 # =====================================================
@@ -146,11 +145,11 @@ def recommend_by_genre(genre):
         genre_df[['book_title', 'rating', 'categories']]
         .drop_duplicates()
         .sort_values(by='rating', ascending=False)
-        .head(10)
+        .head(5)
         .reset_index(drop=True)
     )
 
-    genre_df.columns = ['Book Title', 'Reader Rating', 'Genre']
+    genre_df.columns = ['Book Title', 'Rating', 'Genre']
 
     return genre_df
 
@@ -161,10 +160,10 @@ def recommend_by_genre(genre):
 col1, col2 = st.columns(2)
 
 with col1:
-    home_btn = st.button('Home Dashboard')
+    home_btn = st.button("Home")
 
 with col2:
-    trending_btn = st.button('Top 100 Trending Books')
+    trending_btn = st.button("Trending Books")
 
 if 'page' not in st.session_state:
     st.session_state.page = 'home'
@@ -181,78 +180,117 @@ if trending_btn:
 # =====================================================
 if st.session_state.page == 'home':
 
-    st.header('Book Recommendations and Reading Insights')
+    st.header("Find Books You’ll Enjoy")
+
+    st.write(
+        "Choose a book or genre below. We’ll show simple recommendations."
+    )
 
     st.divider()
 
-    # ---------------- RECOMMENDATIONS ----------------
-    st.subheader('Find Your Next Book')
+
+    # =================================================
+    # RECOMMENDATION AREA
+    # =================================================
+    st.subheader("Book Recommendations")
 
     col1, col2 = st.columns(2)
 
     with col1:
 
         selected_book = st.selectbox(
-            'Choose a Book',
+            "Choose a book",
             sorted(df_cb['book_title'].dropna().unique())
         )
 
         if selected_book:
-            recommendations = recommend_books(selected_book)
 
-            st.dataframe(
-                recommendations,
-                use_container_width=True,
-                height=350
-            )
+            results = recommend_books(selected_book)
+
+            st.write("### Because you liked this book, you may also like:")
+
+            for _, row in results.iterrows():
+
+                st.markdown(
+                    f"""
+                    <div style="
+                        background-color:#fff7ec;
+                        padding:16px;
+                        border-radius:12px;
+                        margin-bottom:12px;
+                        border-left:6px solid #c9895b;
+                    ">
+
+                    <h3 style="margin-bottom:5px;">
+                        {row['Book Title']}
+                    </h3>
+
+                    <p>
+                        Rating: {row['Rating']}  
+                        Match: {row['Match Score']}
+                    </p>
+
+                    <p>
+                        This book is similar in theme, style, and content to
+                        <b>{selected_book}</b>.
+                    </p>
+
+                    </div>
+                    """,
+                    unsafe_allow_html=True
+                )
+
 
     with col2:
 
         selected_genre = st.selectbox(
-            'Choose a Genre',
+            "Choose a genre",
             sorted(books['categories'].dropna().unique())
         )
 
         if selected_genre:
+
             genre_recs = recommend_by_genre(selected_genre)
 
-            st.dataframe(
-                genre_recs,
-                use_container_width=True,
-                height=350
-            )
+            st.write("### Popular books in this genre:")
+
+            st.dataframe(genre_recs, use_container_width=True)
+
 
     st.divider()
 
-    # ---------------- WARM BAR CHARTS ----------------
+
+    # =================================================
+    # CHARTS (WARM COLOURS)
+    # =================================================
     col1, col2 = st.columns(2)
 
     with col1:
 
-        st.subheader('Most Popular Genres')
+        st.subheader("Most Popular Genres")
 
-        top_categories = books['categories'].value_counts().head(10).reset_index()
-        top_categories.columns = ['Genre', 'Count']
+        data = books['categories'].value_counts().head(8).reset_index()
+        data.columns = ['Genre', 'Count']
 
         fig = px.bar(
-            top_categories,
+            data,
             x='Genre',
             y='Count',
             color='Genre',
-            color_discrete_sequence=px.colors.qualitative.Set2  # stronger contrast
+            color_discrete_sequence=px.colors.qualitative.Set2
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
 
-        st.subheader('Most Popular Authors')
+        st.subheader("Most Popular Authors")
 
-        top_authors = books['store'].value_counts().head(10).reset_index()
-        top_authors.columns = ['Author', 'Count']
+        data = books['store'].value_counts().head(8).reset_index()
+        data.columns = ['Author', 'Count']
 
         fig = px.bar(
-            top_authors,
+            data,
             x='Author',
             y='Count',
             color='Author',
@@ -261,45 +299,43 @@ if st.session_state.page == 'home':
 
         st.plotly_chart(fig, use_container_width=True)
 
+
     st.divider()
 
-    # ---------------- TIME SERIES + SLIDER ----------------
-    st.subheader('Popular Genres Over Time')
+
+    # =================================================
+    # TIME SLIDER CHART
+    # =================================================
+    st.subheader("Reading Trends Over Time")
 
     books_clean = books.dropna(subset=['timestamp', 'categories']).copy()
 
-    top5_genres = books_clean['categories'].value_counts().head(5).index
+    top5 = books_clean['categories'].value_counts().head(5).index
 
-    trend_df = books_clean[books_clean['categories'].isin(top5_genres)].copy()
+    trend = books_clean[books_clean['categories'].isin(top5)].copy()
 
-    min_date = trend_df['timestamp'].min().date()
-    max_date = trend_df['timestamp'].max().date()
+    min_d = trend['timestamp'].min().date()
+    max_d = trend['timestamp'].max().date()
 
     date_range = st.slider(
-        "Select date range",
-        min_value=min_date,
-        max_value=max_date,
-        value=(min_date, max_date)
+        "Select time period",
+        min_value=min_d,
+        max_value=max_d,
+        value=(min_d, max_d)
     )
 
-    start_date, end_date = date_range
+    start, end = date_range
 
-    filtered = trend_df[
-        (trend_df['timestamp'].dt.date >= start_date) &
-        (trend_df['timestamp'].dt.date <= end_date)
-    ]
+    filtered = trend[
+        (trend['timestamp'].dt.date >= start) &
+        (trend['timestamp'].dt.date <= end)
+    ].copy()
 
-    filtered = filtered.copy()
     filtered['month'] = filtered['timestamp'].dt.to_period('M').astype(str)
 
-    genre_time = (
-        filtered
-        .groupby(['month', 'categories'])
-        .size()
-        .unstack(fill_value=0)
-    )
+    chart = filtered.groupby(['month', 'categories']).size().unstack(fill_value=0)
 
-    st.line_chart(genre_time, use_container_width=True)
+    st.line_chart(chart, use_container_width=True)
 
 
 # =====================================================
@@ -307,10 +343,9 @@ if st.session_state.page == 'home':
 # =====================================================
 if st.session_state.page == 'trending':
 
-    st.header('Top 100 Trending Books')
+    st.header("Trending Books")
 
     st.dataframe(
         trending.reset_index(drop=True),
-        use_container_width=True,
-        height=700
+        use_container_width=True
     )
