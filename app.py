@@ -19,18 +19,18 @@ st.title("📚 Book Analytics Dashboard")
 
 
 # =====================================================
-# SIMPLE CREAM THEME + GRAPH FRAMES
+# ACCESSIBLE THEME (65+ FRIENDLY)
 # =====================================================
 st.markdown(
     """
     <style>
 
     .stApp {
-        background-color: #f7f3ea;
+        background-color: #f5f2ea;  /* soft warm neutral */
     }
 
     h1, h2, h3 {
-        color: #4a3b2a;
+        color: #2f2f2f;  /* strong readable dark grey */
     }
 
     .book-card {
@@ -38,22 +38,21 @@ st.markdown(
         padding: 15px;
         border-radius: 10px;
         margin-bottom: 10px;
-        border: 1px solid #e6d9c8;
+        border: 1px solid #d6d2c4;
         box-shadow: 1px 1px 6px rgba(0,0,0,0.05);
     }
 
-    /* GRAPH FRAME (Power BI style) */
     .graph-frame {
         background-color: white;
         padding: 15px;
         border-radius: 12px;
-        border: 1px solid #e6d9c8;
+        border: 1px solid #d6d2c4;
         box-shadow: 2px 2px 10px rgba(0,0,0,0.06);
         margin-bottom: 20px;
     }
 
     div.stButton > button {
-        background-color: #b8744f;
+        background-color: #4a6fa5;  /* calm accessible blue */
         color: white;
         font-size: 18px;
         border-radius: 8px;
@@ -62,7 +61,7 @@ st.markdown(
     }
 
     div.stButton > button:hover {
-        background-color: #9c5f3f;
+        background-color: #3c5c8c;
     }
 
     </style>
@@ -113,7 +112,7 @@ content_sim, book_idx, df_cb = build_model(books)
 
 
 # =====================================================
-# RECOMMENDATION (NO DUPLICATES)
+# RECOMMENDATION FUNCTION
 # =====================================================
 def recommend_books(title, top_n=5):
 
@@ -202,7 +201,6 @@ if st.session_state.page == "home":
     st.header("Overview")
     st.divider()
 
-    # ---------------- INPUTS ----------------
     col1, col2 = st.columns(2)
 
     with col1:
@@ -217,7 +215,6 @@ if st.session_state.page == "home":
             sorted(books["categories"].dropna().unique())
         )
 
-    # ---------------- RECOMMENDATIONS ----------------
     col1, col2 = st.columns(2)
 
     with col1:
@@ -233,7 +230,7 @@ if st.session_state.page == "home":
     st.divider()
 
     # =================================================
-    # TOP GENRES (FRAME + NO AXIS)
+    # GRAPHS (ACCESSIBLE COLOURS)
     # =================================================
     col1, col2 = st.columns(2)
 
@@ -249,14 +246,23 @@ if st.session_state.page == "home":
             x="Genre",
             y="Count",
             color="Genre",
-            color_discrete_sequence=px.colors.sequential.Oranges
+            color_discrete_sequence=[
+                "#4a6fa5",  # blue
+                "#6b8e23",  # olive green (soft, readable)
+                "#8b5e3c",  # brown
+                "#5f6f7a",  # slate grey
+                "#a66c4f",
+                "#3f6c6d",
+                "#7a7a7a",
+                "#2f2f2f"
+            ]
         )
 
         fig.update_layout(
             xaxis=dict(showticklabels=False, showgrid=False),
             yaxis=dict(showgrid=False),
-            margin=dict(l=10, r=10, t=30, b=10),
-            plot_bgcolor="white"
+            plot_bgcolor="white",
+            margin=dict(l=10, r=10, t=30, b=10)
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -274,14 +280,23 @@ if st.session_state.page == "home":
             x="Author",
             y="Count",
             color="Author",
-            color_discrete_sequence=px.colors.sequential.Burg
+            color_discrete_sequence=[
+                "#3f6c6d",
+                "#4a6fa5",
+                "#8b5e3c",
+                "#6b8e23",
+                "#5f6f7a",
+                "#a66c4f",
+                "#2f2f2f",
+                "#7a7a7a"
+            ]
         )
 
         fig.update_layout(
             xaxis=dict(showticklabels=False, showgrid=False),
             yaxis=dict(showgrid=False),
-            margin=dict(l=10, r=10, t=30, b=10),
-            plot_bgcolor="white"
+            plot_bgcolor="white",
+            margin=dict(l=10, r=10, t=30, b=10)
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -290,7 +305,7 @@ if st.session_state.page == "home":
     st.divider()
 
     # =================================================
-    # TREND OVER TIME (FRAME + NO AXIS)
+    # TREND OVER TIME (NO AXIS + ACCESSIBLE)
     # =================================================
     st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
     st.subheader("Reading Trends Over Time")
@@ -325,13 +340,8 @@ if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
 
-    st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
-
     st.dataframe(
         trending.reset_index(drop=True),
         use_container_width=True,
-        hide_index=True,
-        height=900
+        hide_index=True
     )
-
-    st.markdown('</div>', unsafe_allow_html=True)
