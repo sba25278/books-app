@@ -19,7 +19,7 @@ st.title("📚 Book Analytics Dashboard")
 
 
 # =====================================================
-# SIMPLE CREAM THEME + GRAPH FRAMES
+# ACCESSIBLE THEME + GRAPH FRAMES (65+ FRIENDLY)
 # =====================================================
 st.markdown(
     """
@@ -30,7 +30,7 @@ st.markdown(
     }
 
     h1, h2, h3 {
-        color: #4a3b2a;
+        color: #2f2f2f;
     }
 
     .book-card {
@@ -42,7 +42,6 @@ st.markdown(
         box-shadow: 1px 1px 6px rgba(0,0,0,0.05);
     }
 
-    /* GRAPH FRAME (Power BI style) */
     .graph-frame {
         background-color: white;
         padding: 15px;
@@ -53,7 +52,7 @@ st.markdown(
     }
 
     div.stButton > button {
-        background-color: #b8744f;
+        background-color: #4a6fa5;
         color: white;
         font-size: 18px;
         border-radius: 8px;
@@ -62,7 +61,7 @@ st.markdown(
     }
 
     div.stButton > button:hover {
-        background-color: #9c5f3f;
+        background-color: #3c5c8c;
     }
 
     </style>
@@ -113,7 +112,23 @@ content_sim, book_idx, df_cb = build_model(books)
 
 
 # =====================================================
-# RECOMMENDATION (NO DUPLICATES)
+# HIGH-CONTRAST 65+ COLOUR PALETTE
+# (red/orange/brown/black/grey - high readability)
+# =====================================================
+ACCESSIBLE_COLOURS = [
+    "#b30000",  # deep red
+    "#e34a33",  # strong orange-red
+    "#f16913",  # orange
+    "#8c2d04",  # brown
+    "#4a4a4a",  # dark grey
+    "#000000",  # black
+    "#6a3d2a",  # dark brown
+    "#7f0000"   # maroon
+]
+
+
+# =====================================================
+# RECOMMENDATION FUNCTION (NO DUPLICATES)
 # =====================================================
 def recommend_books(title, top_n=5):
 
@@ -233,7 +248,7 @@ if st.session_state.page == "home":
     st.divider()
 
     # =================================================
-    # TOP GENRES (FRAME + NO AXIS)
+    # TOP GENRES (ACCESSIBLE COLOURS + NO AXIS CLUTTER)
     # =================================================
     col1, col2 = st.columns(2)
 
@@ -249,14 +264,14 @@ if st.session_state.page == "home":
             x="Genre",
             y="Count",
             color="Genre",
-            color_discrete_sequence=px.colors.sequential.Oranges
+            color_discrete_sequence=ACCESSIBLE_COLOURS
         )
 
         fig.update_layout(
             xaxis=dict(showticklabels=False, showgrid=False),
             yaxis=dict(showgrid=False),
-            margin=dict(l=10, r=10, t=30, b=10),
-            plot_bgcolor="white"
+            plot_bgcolor="white",
+            margin=dict(l=10, r=10, t=30, b=10)
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -274,14 +289,14 @@ if st.session_state.page == "home":
             x="Author",
             y="Count",
             color="Author",
-            color_discrete_sequence=px.colors.sequential.Burg
+            color_discrete_sequence=ACCESSIBLE_COLOURS
         )
 
         fig.update_layout(
             xaxis=dict(showticklabels=False, showgrid=False),
             yaxis=dict(showgrid=False),
-            margin=dict(l=10, r=10, t=30, b=10),
-            plot_bgcolor="white"
+            plot_bgcolor="white",
+            margin=dict(l=10, r=10, t=30, b=10)
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -290,7 +305,7 @@ if st.session_state.page == "home":
     st.divider()
 
     # =================================================
-    # TREND OVER TIME (FRAME + NO AXIS)
+    # TREND OVER TIME + SLIDER (NEW)
     # =================================================
     st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
     st.subheader("Reading Trends Over Time")
@@ -298,14 +313,30 @@ if st.session_state.page == "home":
     clean = books.dropna(subset=["timestamp", "categories"]).copy()
 
     top5 = clean["categories"].value_counts().head(5).index
-
     trend = clean[clean["categories"].isin(top5)].copy()
 
     trend["month"] = trend["timestamp"].dt.to_period("M").astype(str)
 
+    min_date = clean["timestamp"].min().date()
+    max_date = clean["timestamp"].max().date()
+
+    date_range = st.slider(
+        "Select time period",
+        min_value=min_date,
+        max_value=max_date,
+        value=(min_date, max_date)
+    )
+
+    start_date, end_date = date_range
+
+    trend = trend[
+        (trend["timestamp"].dt.date >= start_date) &
+        (trend["timestamp"].dt.date <= end_date)
+    ]
+
     chart = trend.groupby(["month", "categories"]).size().unstack(fill_value=0)
 
-    fig = px.line(chart, markers=True)
+    fig = px.line(chart, markers=True, color_discrete_sequence=ACCESSIBLE_COLOURS)
 
     fig.update_layout(
         xaxis=dict(showticklabels=False, showgrid=False),
@@ -325,13 +356,9 @@ if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
 
-    st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
-
     st.dataframe(
         trending.reset_index(drop=True),
         use_container_width=True,
         hide_index=True,
         height=900
     )
-
-    st.markdown('</div>', unsafe_allow_html=True)
