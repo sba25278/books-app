@@ -374,11 +374,18 @@ if st.session_state.page == "trending":
     )
 
     # =================================================
-    # MULTI-LABEL GENRE PARSING
+    # MULTI-LABEL GENRE PARSING (USING CLEAN DATA)
     # =================================================
     trending = trending.copy()
-    trending["genre_split"] = trending["genre"].astype(str).str.split()
+
+    # IMPORTANT: use pre-cleaned column
+    trending["genre_split"] = trending["genre_clean"].astype(str).str.split("|")
+
     trending_exploded = trending.explode("genre_split")
+
+    # remove empty values (important safety step)
+    trending_exploded = trending_exploded.dropna(subset=["genre_split"])
+    trending_exploded = trending_exploded[trending_exploded["genre_split"] != ""]
 
     st.subheader("Trending Insights")
 
