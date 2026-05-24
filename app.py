@@ -15,7 +15,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📚 Book Analytics Dashboard")
+st.title("Book Analytics Dashboard")
 
 
 # =====================================================
@@ -201,8 +201,8 @@ def show_cards(df):
             f"""
             <div class="book-card">
                 <b>{row['book_title']}</b><br>
-                ⭐ Rating: {row['rating']}<br>
-                📚 Genre: {row['categories']}
+                  Rating: {row['rating']}<br>
+                  Genre: {row['categories']}
             </div>
             """,
             unsafe_allow_html=True
