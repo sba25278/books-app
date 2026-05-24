@@ -376,23 +376,32 @@ if st.session_state.page == "trending":
     st.subheader("Trending Insights")
 
     # =================================================
-    # CLEAN DATA + MULTI-LABEL PARSING (ROBUST)
+    # CLEAN DATA + MULTI-LABEL PARSING (FIXED FOR YOUR DATA)
     # =================================================
     trending = trending.copy()
 
-    # ensure numeric price (CRITICAL FIX)
+    # ensure numeric price
     trending["book price"] = pd.to_numeric(trending["book price"], errors="coerce")
 
-    # split cleaned genre column
-    trending["genre_split"] = trending["genre_clean"].astype(str).str.split("|")
+    # =================================================
+    # CREATE SPLIT FROM ORIGINAL genre COLUMN (IMPORTANT FIX)
+    # =================================================
+    trending["genre_split"] = (
+        trending["genre"]
+        .astype(str)
+        .str.replace("&", "|")
+        .str.replace("/", "|")
+        .str.split("|")
+    )
 
     trending_exploded = trending.explode("genre_split")
 
-    # remove empty values
+    # clean whitespace + remove empties
+    trending_exploded["genre_split"] = trending_exploded["genre_split"].str.strip()
     trending_exploded = trending_exploded.dropna(subset=["genre_split"])
     trending_exploded = trending_exploded[trending_exploded["genre_split"] != ""]
 
-    # remove duplicate book-genre pairs (CRITICAL FIX for mean inflation)
+    # remove duplicates (prevents price inflation bug)
     trending_exploded = trending_exploded.drop_duplicates(
         subset=["book title", "genre_split"]
     )
@@ -428,28 +437,26 @@ if st.session_state.page == "trending":
     st.plotly_chart(fig2, use_container_width=True)
 
     # =================================================
-    # TABLE (SAFE + NO DUPLICATE COLUMN CRASH)
+    # TABLE (GENRE INSERTED AFTER BOOK TITLE)
     # =================================================
-
     trending_display = trending.copy()
 
-    # IMPORTANT: ensure no duplicated columns exist (PyArrow safety)
     trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
 
-    # create clean readable genre column safely
+    # create readable genre column
     trending_display["Genre"] = trending_display["genre_split"].apply(
         lambda x: ", ".join(x) if isinstance(x, list) else ""
     )
 
-    # build column order
+    # column ordering
     cols = trending_display.columns.tolist()
 
-    # remove raw/duplicate genre-related columns safely
-    for col in ["genre", "genre_clean", "genre_split", "Genre"]:
+    # remove duplicates safely
+    for col in ["genre", "Genre"]:
         if col in cols:
             cols.remove(col)
 
-    # insert clean Genre column after book title
+    # insert after book title
     insert_pos = cols.index("book title") + 1
     cols.insert(insert_pos, "Genre")
 
