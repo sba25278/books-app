@@ -378,7 +378,7 @@ if st.session_state.page == "trending":
         "Below is a table of the most popular books currently trending."
     )
 
-    st.subheader("Top 5 Genres + Average Price per Genre")
+    st.subheader("Top 5 Genres                            Average Price per Genre")
 
     trending_df = trending.copy()
     trending_df["book price"] = pd.to_numeric(trending_df["book price"], errors="coerce")
