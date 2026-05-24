@@ -373,32 +373,39 @@ if st.session_state.page == "trending":
         "Top 100 trending books page. This table shows the most popular books currently trending."
     )
 
+    st.subheader("Trending Insights")
+
     # =================================================
-    # MULTI-LABEL GENRE PARSING (USING CLEAN DATA)
+    # CLEAN DATA + MULTI-LABEL PARSING (ROBUST)
     # =================================================
     trending = trending.copy()
 
-    # IMPORTANT: use pre-cleaned column
+    # ensure numeric price (CRITICAL FIX)
+    trending["book price"] = pd.to_numeric(trending["book price"], errors="coerce")
+
+    # split cleaned genre column (from preprocessing step)
     trending["genre_split"] = trending["genre_clean"].astype(str).str.split("|")
 
     trending_exploded = trending.explode("genre_split")
 
-    # remove empty values (important safety step)
+    # remove empty values
     trending_exploded = trending_exploded.dropna(subset=["genre_split"])
     trending_exploded = trending_exploded[trending_exploded["genre_split"] != ""]
 
-    st.subheader("Trending Insights")
+    # remove duplicate book-genre pairs (CRITICAL FIX for mean inflation)
+    trending_exploded = trending_exploded.drop_duplicates(
+        subset=["book title", "genre_split"]
+    )
 
     # =================================================
-    # AVG PRICE BY GENRE
+    # AVG PRICE BY GENRE (FIXED)
     # =================================================
     price_by_genre = (
         trending_exploded
-        .groupby("genre_split")["book price"]
+        .groupby("genre_split", as_index=False)["book price"]
         .mean()
-        .sort_values(ascending=False)
+        .sort_values("book price", ascending=False)
         .head(10)
-        .reset_index()
     )
 
     price_by_genre.columns = ["Genre", "Avg Price"]
