@@ -376,57 +376,58 @@ if st.session_state.page == "trending":
     st.subheader("Trending Insights")
 
     # =================================================
-    # CLEAN DATA + MULTI-LABEL PARSING (FIXED FOR YOUR DATA)
+    # CLEAN DATA + MULTI-LABEL PARSING (ROBUST)
     # =================================================
     trending = trending.copy()
 
-    # ensure numeric price
+    # ensure numeric price (safe even if not used in chart)
     trending["book price"] = pd.to_numeric(trending["book price"], errors="coerce")
 
     # =================================================
-    # CREATE SPLIT FROM ORIGINAL genre COLUMN
+    # CLEAN + SPLIT GENRES (FIXED MULTI-LABEL HANDLING)
     # =================================================
     trending["genre_split"] = (
         trending["genre"]
         .astype(str)
-        .str.replace("&", "|")
-        .str.replace("/", "|")
+        .str.lower()
+        .str.replace("&", "|", regex=False)
+        .str.replace("/", "|", regex=False)
+        .str.replace(",", "|", regex=False)
         .str.split("|")
     )
 
     trending_exploded = trending.explode("genre_split")
 
-    # clean whitespace + remove empties
+    # clean whitespace + remove junk
     trending_exploded["genre_split"] = trending_exploded["genre_split"].str.strip()
-    trending_exploded = trending_exploded.dropna(subset=["genre_split"])
-    trending_exploded = trending_exploded[trending_exploded["genre_split"] != ""]
 
-    # =================================================
-    # CRITICAL FIX: REMOVE DUPLICATE BOOK-GENRE PAIRS
-    # =================================================
+    trending_exploded = trending_exploded[
+        trending_exploded["genre_split"].notna() &
+        (trending_exploded["genre_split"] != "") &
+        (~trending_exploded["genre_split"].isin(["and", "&"]))
+    ]
+
+    # remove duplicate book-genre pairs (prevents weighting bias)
     trending_exploded = trending_exploded.drop_duplicates(
         subset=["book title", "genre_split"]
     )
 
     # =================================================
-    # AVG PRICE BY GENRE (FIXED + STABLE)
+    # TOP 5 GENRES (FIXED + SIMPLE)
     # =================================================
-    trend_price = trending_exploded.copy()
-
-    price_by_genre = (
-        trend_price
-        .groupby("genre_split", as_index=False)["book price"]
-        .mean()
-        .sort_values("book price", ascending=False)
-        .head(10)
+    top_genres = (
+        trending_exploded["genre_split"]
+        .value_counts()
+        .head(5)
+        .reset_index()
     )
 
-    price_by_genre.columns = ["Genre", "Avg Price"]
+    top_genres.columns = ["Genre", "Count"]
 
     fig2 = px.bar(
-        price_by_genre,
+        top_genres,
         x="Genre",
-        y="Avg Price",
+        y="Count",
         color="Genre",
         color_discrete_sequence=ACCESSIBLE_COLOURS
     )
@@ -441,27 +442,26 @@ if st.session_state.page == "trending":
     st.plotly_chart(fig2, use_container_width=True)
 
     # =================================================
-    # TABLE (GENRE INSERTED AFTER BOOK TITLE)
+    # TABLE (CLEAN + SAFE + NO DUPLICATES)
     # =================================================
     trending_display = trending.copy()
 
-    # safety: prevent duplicate columns (Streamlit crash fix)
+    # prevent duplicate columns crashing Streamlit
     trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
 
-    # build readable genre column
-    trending_display["Genre"] = trending_display["genre_split"].apply(
-        lambda x: ", ".join(x) if isinstance(x, list) else ""
-    )
+    # ensure genre_split exists in base table (important fix)
+    trending_display["genre_split"] = trending_display["genre"]
 
-    # column ordering
+    # build readable genre column
+    trending_display["Genre"] = trending_display["genre_split"].astype(str)
+
+    # reorder columns: insert Genre after book title
     cols = trending_display.columns.tolist()
 
-    # remove raw + duplicate genre columns safely
-    for col in ["genre", "Genre"]:
+    for col in ["Genre"]:
         if col in cols:
             cols.remove(col)
 
-    # insert AFTER book title
     insert_pos = cols.index("book title") + 1
     cols.insert(insert_pos, "Genre")
 
