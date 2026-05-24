@@ -5,7 +5,6 @@ import plotly.express as px
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-import pyttsx3   
 
 # =====================================================
 # PAGE SETUP
@@ -15,10 +14,10 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("📚 Book Analytics Dashboard")
+st.title("Book Analytics Dashboard")
 
 # =====================================================
-# ACCESSIBLE THEME (65+ FRIENDLY)
+# ACCESSIBLE THEME
 # =====================================================
 st.markdown("""
 <style>
@@ -40,8 +39,12 @@ h1, h2, h3 {
     box-shadow: 1px 1px 6px rgba(0,0,0,0.05);
 }
 
-/* FRAME STYLE (IMPORTANT FIX) */
-.graph-frame {
+/* REAL FRAME STYLE (works with containers) */
+.block-container {
+    padding-top: 1rem;
+}
+
+div[data-testid="stVerticalBlock"] {
     background-color: white;
     padding: 15px;
     border-radius: 12px;
@@ -62,7 +65,6 @@ div.stButton > button {
 </style>
 """, unsafe_allow_html=True)
 
-
 # =====================================================
 # LOAD DATA
 # =====================================================
@@ -74,7 +76,6 @@ def load_data():
     return books, trending
 
 books, trending = load_data()
-
 
 # =====================================================
 # MODEL
@@ -99,71 +100,13 @@ def build_model(df):
 
 content_sim, book_idx, df_cb = build_model(books)
 
-
 # =====================================================
-# COLOUR PALETTE (HIGH CONTRAST 65+ FRIENDLY)
+# COLOURS (65+ FRIENDLY)
 # =====================================================
-COLOURS = [
-    "#c94c4c",  
-    "#e07a5f",  
-    "#f2a65a",  
-    "#6a994e",  
-    "#8b5e3c",  
-    "#c06c84",  
-    "#8e7cc3",  
-    "#2f2f2f"   
+ACCESSIBLE_COLOURS = [
+    "#c94c4c", "#e07a5f", "#f2a65a", "#6a994e",
+    "#8b5e3c", "#c06c84", "#8e7cc3", "#2f2f2f"
 ]
-
-
-# =====================================================
-# TEXT TO SPEECH FUNCTION
-# =====================================================
-def speak(text):
-    engine = pyttsx3.init()
-    engine.say(text)
-    engine.runAndWait()
-
-
-# =====================================================
-# RECOMMENDATIONS (NO DUPLICATES)
-# =====================================================
-def recommend_books(title, top_n=5):
-
-    if title not in book_idx:
-        return pd.DataFrame()
-
-    idx = book_idx[title]
-
-    scores = list(enumerate(content_sim[idx]))
-    scores = sorted(scores, key=lambda x: x[1], reverse=True)
-
-    seen = set()
-    results = []
-
-    for i, score in scores:
-        book = df_cb.iloc[i]["book_title"]
-
-        if book != title and book not in seen:
-            seen.add(book)
-            results.append(i)
-
-        if len(results) == top_n:
-            break
-
-    return df_cb.iloc[results][["book_title", "rating", "categories"]].reset_index(drop=True)
-
-
-def recommend_by_genre(genre):
-
-    df = books[
-        books["categories"].astype(str).str.contains(genre, case=False, na=False)
-    ]
-
-    df = df.drop_duplicates(subset=["book_title"])
-    df = df.sort_values("rating", ascending=False).head(5)
-
-    return df[["book_title", "rating", "categories"]].reset_index(drop=True)
-
 
 # =====================================================
 # NAVIGATION
@@ -174,7 +117,7 @@ with col1:
     home_btn = st.button("Home")
 
 with col2:
-    trending_btn = st.button("Trending")
+    trending_btn = st.button("Top 100 Trending Books")
 
 if "page" not in st.session_state:
     st.session_state.page = "home"
@@ -185,28 +128,18 @@ if home_btn:
 if trending_btn:
     st.session_state.page = "trending"
 
-
 # =====================================================
-# CARD DISPLAY
+# CARDS
 # =====================================================
 def show_cards(df):
-    text_to_read = ""
-
     for _, row in df.iterrows():
-        card_text = f"{row['book_title']}. Rating {row['rating']}. Genre {row['categories']}"
-
-        text_to_read += card_text + ". "
-
         st.markdown(f"""
         <div class="book-card">
             <b>{row['book_title']}</b><br>
-              Rating: {row['rating']}<br>
-              Genre: {row['categories']}
+            Rating: {row['rating']}<br>
+            Genre: {row['categories']}
         </div>
         """, unsafe_allow_html=True)
-
-    return text_to_read
-
 
 # =====================================================
 # HOME PAGE
@@ -214,6 +147,7 @@ def show_cards(df):
 if st.session_state.page == "home":
 
     st.header("Overview")
+    st.divider()
 
     col1, col2 = st.columns(2)
 
@@ -229,32 +163,26 @@ if st.session_state.page == "home":
             sorted(books["categories"].dropna().unique())
         )
 
-    # ---------------- RECS ----------------
     col1, col2 = st.columns(2)
 
     with col1:
         st.subheader("Book Recommendations")
         if selected_book:
-            recs = recommend_books(selected_book)
-            spoken_text = show_cards(recs)
-
-            if st.button("🔊 Read Book Recommendations"):
-                speak(spoken_text)
+            show_cards(recommend_books(selected_book))
 
     with col2:
         st.subheader("Genre Recommendations")
         if selected_genre:
-            recs = recommend_by_genre(selected_genre)
-            show_cards(recs)
+            show_cards(recommend_by_genre(selected_genre))
 
     st.divider()
 
     # =================================================
-    # TOP GENRES (FRAME FIXED)
+    # TOP GENRES
     # =================================================
-    with st.container():
-        st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
+    col1, col2 = st.columns(2)
 
+    with col1:
         st.subheader("Top Genres")
 
         g = books["categories"].value_counts().head(8).reset_index()
@@ -265,66 +193,64 @@ if st.session_state.page == "home":
             x="Genre",
             y="Count",
             color="Genre",
-            color_discrete_sequence=COLOURS
+            color_discrete_sequence=ACCESSIBLE_COLOURS
         )
 
         fig.update_layout(
             xaxis=dict(showticklabels=False, showgrid=False),
             yaxis=dict(showgrid=False),
-            plot_bgcolor="white",
-            margin=dict(l=10, r=10, t=30, b=10)
+            plot_bgcolor="white"
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
-        st.markdown("</div>", unsafe_allow_html=True)
+    with col2:
+        st.subheader("Top Authors")
 
-    # =================================================
-    # TREND OVER TIME + SLIDER
-    # =================================================
-    with st.container():
-        st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
+        a = books["store"].value_counts().head(8).reset_index()
+        a.columns = ["Author", "Count"]
 
-        st.subheader("Reading Trends Over Time")
-
-        clean = books.dropna(subset=["timestamp", "categories"]).copy()
-        top5 = clean["categories"].value_counts().head(5).index
-        trend = clean[clean["categories"].isin(top5)].copy()
-
-        min_date = clean["timestamp"].min().date()
-        max_date = clean["timestamp"].max().date()
-
-        date_range = st.slider(
-            "Select time period",
-            min_value=min_date,
-            max_value=max_date,
-            value=(min_date, max_date)
+        fig = px.bar(
+            a,
+            x="Author",
+            y="Count",
+            color="Author",
+            color_discrete_sequence=ACCESSIBLE_COLOURS
         )
-
-        start_date, end_date = date_range
-
-        trend = trend[
-            (trend["timestamp"].dt.date >= start_date) &
-            (trend["timestamp"].dt.date <= end_date)
-        ]
-
-        trend["month"] = trend["timestamp"].dt.to_period("M").astype(str)
-
-        chart = trend.groupby(["month", "categories"]).size().unstack(fill_value=0)
-
-        fig = px.line(chart, markers=True, color_discrete_sequence=COLOURS)
 
         fig.update_layout(
             xaxis=dict(showticklabels=False, showgrid=False),
             yaxis=dict(showgrid=False),
-            plot_bgcolor="white",
-            margin=dict(l=10, r=10, t=30, b=10)
+            plot_bgcolor="white"
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
-        st.markdown("</div>", unsafe_allow_html=True)
+    st.divider()
 
+    # =================================================
+    # TREND OVER TIME (FIXED FRAME)
+    # =================================================
+    st.subheader("Reading Trends Over Time")
+
+    clean = books.dropna(subset=["timestamp", "categories"]).copy()
+
+    top5 = clean["categories"].value_counts().head(5).index
+    trend = clean[clean["categories"].isin(top5)].copy()
+
+    trend["month"] = trend["timestamp"].dt.to_period("M").astype(str)
+
+    chart = trend.groupby(["month", "categories"]).size().unstack(fill_value=0)
+
+    fig = px.line(chart, markers=True, color_discrete_sequence=ACCESSIBLE_COLOURS)
+
+    fig.update_layout(
+        xaxis=dict(showticklabels=False, showgrid=False),
+        yaxis=dict(showgrid=False),
+        plot_bgcolor="white"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
 # TRENDING PAGE
