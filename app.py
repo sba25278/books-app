@@ -24,7 +24,7 @@ st.markdown(
     <style>
 
     .stApp {
-        background-color: #f7f1e6;
+        background-color: #fbf3e6;  /* lighter cream */
     }
 
     h1, h2, h3 {
@@ -48,6 +48,11 @@ st.markdown(
 
     div.stButton > button:hover {
         background-color: #a96f45;
+    }
+
+    /* hide dataframe index globally */
+    [data-testid="stDataFrame"] div[role="columnheader"]:first-child {
+        display: none;
     }
 
     </style>
@@ -74,23 +79,21 @@ books, trending = load_data()
 
 
 # =====================================================
-# CONTENT MODEL
+# CONTENT MODEL (FIXED INDEXING)
 # =====================================================
 @st.cache_data
 def build_content_model(df):
 
     df = df.dropna(subset=['content', 'book_title']).copy()
 
-    # keep index intact (IMPORTANT FIX)
-    df = df.sample(min(5000, len(df)), random_state=42).copy()
-    df = df.reset_index(drop=True)
+    df = df.sample(min(5000, len(df)), random_state=42).reset_index(drop=True)
 
     tfidf = TfidfVectorizer(stop_words='english', max_features=2000)
     tfidf_matrix = tfidf.fit_transform(df['content'])
 
     sim = cosine_similarity(tfidf_matrix)
 
-    # SAFE mapping (no duplicate collapse issues)
+    # stable index mapping (no duplicate collapse issues)
     book_index = df.reset_index().set_index('book_title')['index'].to_dict()
 
     return sim, book_index, df
@@ -100,7 +103,7 @@ content_sim, book_idx, df_cb = build_content_model(books)
 
 
 # =====================================================
-# RECOMMENDATION FUNCTION (FIXED)
+# RECOMMENDATION FUNCTION (SAFE)
 # =====================================================
 def recommend_books(title, top_n=10):
 
@@ -109,10 +112,10 @@ def recommend_books(title, top_n=10):
 
     idx = book_idx[title]
 
-    # FIX: flatten prevents array ambiguity bugs
-    scores = list(enumerate(content_sim[idx].flatten()))
+    sim_vector = content_sim[idx].flatten()
 
-    # FIX: force float sorting safety
+    scores = list(enumerate(sim_vector))
+
     scores = sorted(
         scores,
         key=lambda x: float(x[1]),
@@ -163,7 +166,6 @@ with col1:
 with col2:
     trending_btn = st.button('Top 100 Trending Books')
 
-
 if 'page' not in st.session_state:
     st.session_state.page = 'home'
 
@@ -197,7 +199,12 @@ if st.session_state.page == 'home':
 
         if selected_book:
             recommendations = recommend_books(selected_book)
-            st.dataframe(recommendations, use_container_width=True, height=350)
+
+            st.dataframe(
+                recommendations,
+                use_container_width=True,
+                height=350
+            )
 
     with col2:
 
@@ -208,15 +215,20 @@ if st.session_state.page == 'home':
 
         if selected_genre:
             genre_recs = recommend_by_genre(selected_genre)
-            st.dataframe(genre_recs, use_container_width=True, height=350)
 
+            st.dataframe(
+                genre_recs,
+                use_container_width=True,
+                height=350
+            )
 
     st.divider()
 
-    # ---------------- CHARTS ----------------
+    # ---------------- WARM BAR CHARTS ----------------
     col1, col2 = st.columns(2)
 
     with col1:
+
         st.subheader('Most Popular Genres')
 
         top_categories = books['categories'].value_counts().head(10).reset_index()
@@ -227,12 +239,13 @@ if st.session_state.page == 'home':
             x='Genre',
             y='Count',
             color='Genre',
-            color_discrete_sequence=px.colors.sequential.Oranges
+            color_discrete_sequence=px.colors.qualitative.Set2  # stronger contrast
         )
 
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
+
         st.subheader('Most Popular Authors')
 
         top_authors = books['store'].value_counts().head(10).reset_index()
@@ -243,11 +256,10 @@ if st.session_state.page == 'home':
             x='Author',
             y='Count',
             color='Author',
-            color_discrete_sequence=px.colors.sequential.Burg
+            color_discrete_sequence=px.colors.qualitative.Pastel
         )
 
         st.plotly_chart(fig, use_container_width=True)
-
 
     st.divider()
 
@@ -277,6 +289,7 @@ if st.session_state.page == 'home':
         (trend_df['timestamp'].dt.date <= end_date)
     ]
 
+    filtered = filtered.copy()
     filtered['month'] = filtered['timestamp'].dt.to_period('M').astype(str)
 
     genre_time = (
