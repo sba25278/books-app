@@ -364,6 +364,8 @@ if st.session_state.page == "home":
 
 # Top 100 books trending in 2023 according to nyt
 # try to find more updated version if possible?
+# Top 100 books trending in 2023 according to nyt
+# try to find more updated version if possible?
 if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
@@ -373,13 +375,20 @@ if st.session_state.page == "trending":
         "Top 100 trending books page. This table shows the most popular books currently trending."
     )
 
+    # =================================================
+    # CLEAN GENRE (FIRST WORD ONLY FOR BETTER GROUPING)
+    # =================================================
+    trending = trending.copy()
+    trending["genre_clean"] = trending["genre"].astype(str).str.split().str[0]
+
     st.subheader("Trending Insights")
 
-   
-    #price
+    # =================================================
+    # PRICE BY CLEANED GENRE
+    # =================================================
     price_by_genre = (
         trending
-        .groupby("genre")["book price"]
+        .groupby("genre_clean")["book price"]
         .mean()
         .sort_values(ascending=False)
         .head(10)
@@ -405,8 +414,9 @@ if st.session_state.page == "trending":
 
     st.plotly_chart(fig2, use_container_width=True)
 
-
-    # Table
+    # =================================================
+    # TABLE
+    # =================================================
     st.dataframe(
         trending.reset_index(drop=True),
         use_container_width=True,
