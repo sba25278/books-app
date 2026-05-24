@@ -19,7 +19,7 @@ st.title("📚 Book Analytics Dashboard")
 
 
 # =====================================================
-# SIMPLE CREAM THEME
+# SIMPLE CREAM THEME + GRAPH FRAMES
 # =====================================================
 st.markdown(
     """
@@ -40,6 +40,16 @@ st.markdown(
         margin-bottom: 10px;
         border: 1px solid #e6d9c8;
         box-shadow: 1px 1px 6px rgba(0,0,0,0.05);
+    }
+
+    /* GRAPH FRAME (Power BI style) */
+    .graph-frame {
+        background-color: white;
+        padding: 15px;
+        border-radius: 12px;
+        border: 1px solid #e6d9c8;
+        box-shadow: 2px 2px 10px rgba(0,0,0,0.06);
+        margin-bottom: 20px;
     }
 
     div.stButton > button {
@@ -108,7 +118,7 @@ content_sim, book_idx, df_cb = build_model(books)
 def recommend_books(title, top_n=5):
 
     if title not in book_idx:
-        return []
+        return pd.DataFrame()
 
     idx = book_idx[title]
 
@@ -212,24 +222,23 @@ if st.session_state.page == "home":
 
     with col1:
         st.subheader("Book Recommendations")
-
         if selected_book:
-            recs = recommend_books(selected_book)
-            show_cards(recs)
+            show_cards(recommend_books(selected_book))
 
     with col2:
         st.subheader("Genre Recommendations")
-
         if selected_genre:
-            recs = recommend_by_genre(selected_genre)
-            show_cards(recs)
+            show_cards(recommend_by_genre(selected_genre))
 
     st.divider()
 
-    # ---------------- GRAPHS ----------------
+    # =================================================
+    # TOP GENRES (FRAME + NO AXIS)
+    # =================================================
     col1, col2 = st.columns(2)
 
     with col1:
+        st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
         st.subheader("Top Genres")
 
         g = books["categories"].value_counts().head(8).reset_index()
@@ -240,12 +249,21 @@ if st.session_state.page == "home":
             x="Genre",
             y="Count",
             color="Genre",
-            color_discrete_sequence=px.colors.qualitative.Set2
+            color_discrete_sequence=px.colors.sequential.Oranges
+        )
+
+        fig.update_layout(
+            xaxis=dict(showticklabels=False, showgrid=False),
+            yaxis=dict(showgrid=False),
+            margin=dict(l=10, r=10, t=30, b=10),
+            plot_bgcolor="white"
         )
 
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     with col2:
+        st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
         st.subheader("Top Authors")
 
         a = books["store"].value_counts().head(8).reset_index()
@@ -256,14 +274,25 @@ if st.session_state.page == "home":
             x="Author",
             y="Count",
             color="Author",
-            color_discrete_sequence=px.colors.qualitative.Pastel
+            color_discrete_sequence=px.colors.sequential.Burg
+        )
+
+        fig.update_layout(
+            xaxis=dict(showticklabels=False, showgrid=False),
+            yaxis=dict(showgrid=False),
+            margin=dict(l=10, r=10, t=30, b=10),
+            plot_bgcolor="white"
         )
 
         st.plotly_chart(fig, use_container_width=True)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
 
-    # ---------------- TREND OVER TIME ----------------
+    # =================================================
+    # TREND OVER TIME (FRAME + NO AXIS)
+    # =================================================
+    st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
     st.subheader("Reading Trends Over Time")
 
     clean = books.dropna(subset=["timestamp", "categories"]).copy()
@@ -276,7 +305,17 @@ if st.session_state.page == "home":
 
     chart = trend.groupby(["month", "categories"]).size().unstack(fill_value=0)
 
-    st.line_chart(chart, use_container_width=True)
+    fig = px.line(chart, markers=True)
+
+    fig.update_layout(
+        xaxis=dict(showticklabels=False, showgrid=False),
+        yaxis=dict(showgrid=False),
+        plot_bgcolor="white",
+        margin=dict(l=10, r=10, t=30, b=10)
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 
 # =====================================================
@@ -286,6 +325,13 @@ if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
 
-    st.markdown("### Scroll through all books below")
+    st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
 
-    st.dataframe(trending, use_container_width=True, hide_index=True)
+    st.dataframe(
+        trending.reset_index(drop=True),
+        use_container_width=True,
+        hide_index=True,
+        height=900
+    )
+
+    st.markdown('</div>', unsafe_allow_html=True)
