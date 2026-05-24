@@ -428,12 +428,15 @@ if st.session_state.page == "trending":
     st.plotly_chart(fig2, use_container_width=True)
 
     # =================================================
-    # TABLE (WITH CLEAN GENRE COLUMN IN CORRECT POSITION)
+    # TABLE (SAFE + NO DUPLICATE COLUMN CRASH)
     # =================================================
 
     trending_display = trending.copy()
 
-    # convert list → readable string
+    # IMPORTANT: ensure no duplicated columns exist (PyArrow safety)
+    trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
+
+    # create clean readable genre column safely
     trending_display["Genre"] = trending_display["genre_split"].apply(
         lambda x: ", ".join(x) if isinstance(x, list) else ""
     )
@@ -441,12 +444,12 @@ if st.session_state.page == "trending":
     # build column order
     cols = trending_display.columns.tolist()
 
-    # remove unwanted/raw columns from display order
-    for col in ["genre", "genre_clean", "genre_split"]:
+    # remove raw/duplicate genre-related columns safely
+    for col in ["genre", "genre_clean", "genre_split", "Genre"]:
         if col in cols:
             cols.remove(col)
 
-    # insert Genre right after book title
+    # insert clean Genre column after book title
     insert_pos = cols.index("book title") + 1
     cols.insert(insert_pos, "Genre")
 
