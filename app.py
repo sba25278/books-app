@@ -86,18 +86,17 @@ def build_model(df):
 content_sim, book_idx, df_cb = build_model(books)
 
 # =====================================================
-# 65+ FRIENDLY COLOURS (8 only)
-# warm + high contrast + readable
+# COLOURS
 # =====================================================
 ACCESSIBLE_COLOURS = [
-    "#c94c4c",  # red
-    "#e07a5f",  # coral
-    "#f2a65a",  # warm orange
-    "#6a994e",  # green
-    "#8b5e3c",  # brown
-    "#c06c84",  # warm pink
-    "#8e7cc3",  # purple
-    "#2f2f2f"   # dark grey
+    "#c94c4c",
+    "#e07a5f",
+    "#f2a65a",
+    "#6a994e",
+    "#8b5e3c",
+    "#c06c84",
+    "#8e7cc3",
+    "#2f2f2f"
 ]
 
 # =====================================================
@@ -210,11 +209,13 @@ if st.session_state.page == "home":
     st.divider()
 
     # =================================================
-    # TOP GENRES (FRAME FIXED)
+    # SIDE-BY-SIDE GRAPHS (FIXED)
     # =================================================
-    st.subheader("Top Genres")
+    col1, col2 = st.columns(2)
 
-    with st.container():
+    with col1:
+        st.subheader("Top Genres")
+
         g = books["categories"].value_counts().head(8).reset_index()
         g.columns = ["Genre", "Count"]
 
@@ -234,14 +235,9 @@ if st.session_state.page == "home":
 
         st.plotly_chart(fig, use_container_width=True)
 
-    st.divider()
+    with col2:
+        st.subheader("Top Authors")
 
-    # =================================================
-    # TOP AUTHORS
-    # =================================================
-    st.subheader("Top Authors")
-
-    with st.container():
         a = books["store"].value_counts().head(8).reset_index()
         a.columns = ["Author", "Count"]
 
