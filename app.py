@@ -365,104 +365,92 @@ if st.session_state.page == "trending":
     import html
     import pandas as pd
     import plotly.express as px
-    from collections import Counter
 
     st.header("Top 100 Trending Books in 2023")
 
     audio_controls(
         "Top 100 trending books page. This chart shows the top 5 genres in 2023. "
-        "Below is a table of the most popular books currently trending."
+        "Below is the average price per genre."
     )
 
+
+    def clean_genre(g):
+        g = html.unescape(str(g))
+        g = g.replace("&", " ")
+        g = g.strip().title()
+        return g
 
     df = trending.copy()
     df["book price"] = pd.to_numeric(df["book price"], errors="coerce")
 
-    genre_counter = Counter()
-    genre_price_map = {}
+    df["genre"] = df["genre"].apply(
+        lambda x: x if isinstance(x, list) else str(x).split("|")
+    )
 
-    for _, row in df.iterrows():
+    df = df.explode("genre")
 
-        raw = row["genre"]
-        price = row["book price"]
+    df["genre"] = df["genre"].apply(clean_genre)
 
-        if isinstance(raw, list):
-            genres = raw
-        else:
-            genres = str(raw).split("|")
+    df = df[df["genre"].notna() & (df["genre"] != "")]
 
-        for g in genres:
 
-            g = html.unescape(str(g)).strip().title()
+    top_genres = (
+        df["genre"]
+        .value_counts()
+        .head(5)
+        .reset_index()
+    )
+    top_genres.columns = ["Genre", "Count"]
 
-            if not g or g in ["And", "&"]:
-                continue
+    avg_price = (
+        df.groupby("genre")["book price"]
+        .mean()
+        .sort_values(ascending=False)
+        .head(5)
+        .reset_index()
+    )
+    avg_price.columns = ["Genre", "Avg Price"]
 
-            genre_counter[g] += 1
-
-            genre_price_map.setdefault(g, [])
-            if pd.notna(price):
-                genre_price_map[g].append(price)
-
-    top_genres = pd.DataFrame(
-        genre_counter.items(),
-        columns=["Genre", "Count"]
-    ).sort_values("Count", ascending=False).head(5)
-
-    avg_price = pd.DataFrame({
-        "Genre": list(genre_price_map.keys()),
-        "Avg Price": [
-            sum(v) / len(v) if v else 0
-            for v in genre_price_map.values()
-        ]
-    }).sort_values("Avg Price", ascending=False).head(5)
-
+  
     col1, col2 = st.columns(2)
 
     with col1:
-        fig1 = px.bar(
-            top_genres,
-            x="Genre",
-            y="Count",
-            color="Genre",
-            color_discrete_sequence=ACCESSIBLE_COLOURS,
-            title="Top 5 Genres by Frequency"
+        st.plotly_chart(
+            px.bar(
+                top_genres,
+                x="Genre",
+                y="Count",
+                color="Genre",
+                color_discrete_sequence=ACCESSIBLE_COLOURS,
+                title="Top 5 Genres by Frequency"
+            ).update_layout(
+                xaxis=dict(showticklabels=False, showgrid=False),
+                yaxis=dict(showgrid=False),
+                plot_bgcolor="white"
+            ),
+            use_container_width=True
         )
-
-        fig1.update_layout(
-            xaxis=dict(showticklabels=False, showgrid=False, title="Genre"),
-            yaxis=dict(showgrid=False, title="Number of Books"),
-            plot_bgcolor="white"
-        )
-
-        st.plotly_chart(fig1, use_container_width=True)
 
     with col2:
-        fig2 = px.bar(
-            avg_price,
-            x="Genre",
-            y="Avg Price",
-            color="Genre",
-            color_discrete_sequence=ACCESSIBLE_COLOURS,
-            title="Average Book Price by Genre"
+        st.plotly_chart(
+            px.bar(
+                avg_price,
+                x="Genre",
+                y="Avg Price",
+                color="Genre",
+                color_discrete_sequence=ACCESSIBLE_COLOURS,
+                title="Average Book Price by Genre"
+            ).update_layout(
+                xaxis=dict(showticklabels=False, showgrid=False),
+                yaxis=dict(showgrid=False),
+                plot_bgcolor="white"
+            ),
+            use_container_width=True
         )
 
-        fig2.update_layout(
-            xaxis=dict(showticklabels=False, showgrid=False, title="Genre"),
-            yaxis=dict(showgrid=False, title="Average Price (€)"),
-            plot_bgcolor="white"
-        )
-
-        st.plotly_chart(fig2, use_container_width=True)
-
-# table
     df_display = df.copy()
 
-    df_display["Genre"] = df_display["genre"].apply(
-        lambda x: ", ".join([html.unescape(str(i)).strip().title() for i in x])
-        if isinstance(x, list)
-        else html.unescape(str(x)).strip().title()
-    )
+    df_display["Genre"] = df_display["genre"]
 
     df_display = df_display.drop(columns=["genre"], errors="ignore")
 
