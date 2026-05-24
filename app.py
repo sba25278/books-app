@@ -80,14 +80,18 @@ books, trending = load_data()
 def build_content_model(df):
 
     df = df.dropna(subset=['content', 'book_title']).copy()
-    df = df.sample(min(5000, len(df)), random_state=42).reset_index(drop=True)
+
+    # keep index intact (IMPORTANT FIX)
+    df = df.sample(min(5000, len(df)), random_state=42).copy()
+    df = df.reset_index(drop=True)
 
     tfidf = TfidfVectorizer(stop_words='english', max_features=2000)
     tfidf_matrix = tfidf.fit_transform(df['content'])
 
     sim = cosine_similarity(tfidf_matrix)
 
-    book_index = pd.Series(range(len(df)), index=df['book_title']).drop_duplicates()
+    # SAFE mapping (no duplicate collapse issues)
+    book_index = df.reset_index().set_index('book_title')['index'].to_dict()
 
     return sim, book_index, df
 
