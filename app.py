@@ -381,69 +381,66 @@ if st.session_state.page == "trending":
     st.subheader("Top 5 Genres + Average Price per Genre")
 
     trending_df = trending.copy()
-
-    # ensure numeric safety
     trending_df["book price"] = pd.to_numeric(trending_df["book price"], errors="coerce")
 
-
     # =================================================
-    # 1. CLEAN + NORMALISE GENRES (ONE TRUE SOURCE)
+    # CLEAN FUNCTION (FIXS &amp; + CONSISTENT NORMALISATION)
     # =================================================
     def clean_genre(g):
         if not isinstance(g, str):
             return None
-
         g = html.unescape(g)          # fixes &amp;
         g = g.replace("&", " ")       # extra safety
-        g = g.strip().lower()
+        g = g.strip().title()
         return g if g else None
 
+    genre_counter = Counter()
+    genre_prices = {}
 
-    def split_genres(x):
-        if isinstance(x, list):
-            return x
-        return str(x).split("|")
+    for _, row in trending_df.iterrows():
 
+        raw = row["genre"]
+        price = row.get("book price", None)
 
-    trending_df["genre_list"] = trending_df["genre"].apply(split_genres)
+        # handle BOTH list and string safely
+        if isinstance(raw, list):
+            genre_list = raw
+        else:
+            genre_list = str(raw).split("|")
 
+        for g in genre_list:
+            g = clean_genre(g)
+            if not g:
+                continue
 
-    # flatten + clean once
-    exploded = trending_df.explode("genre_list")
+            genre_counter[g] += 1
+            genre_prices.setdefault(g, [])
 
-    exploded["genre_clean"] = exploded["genre_list"].apply(clean_genre)
-
-    exploded = exploded.dropna(subset=["genre_clean"])
-    exploded = exploded[exploded["genre_clean"] != ""]
-
+            if pd.notna(price):
+                genre_prices[g].append(price)
 
     # =================================================
-    # 2. TOP GENRES
+    # TOP GENRES
     # =================================================
     top_genres = (
-        exploded["genre_clean"]
-        .value_counts()
+        pd.DataFrame(genre_counter.items(), columns=["Genre", "Count"])
+        .sort_values("Count", ascending=False)
         .head(5)
-        .reset_index()
     )
-    top_genres.columns = ["Genre", "Count"]
-
 
     # =================================================
-    # 3. AVG PRICE PER GENRE
+    # AVG PRICE
     # =================================================
-    avg_price = (
-        exploded.groupby("genre_clean")["book price"]
-        .mean()
-        .sort_values(ascending=False)
-        .head(5)
-        .reset_index()
-    )
-    avg_price.columns = ["Genre", "Avg Price"]
-
+    avg_price = pd.DataFrame({
+        "Genre": list(genre_prices.keys()),
+        "Avg Price": [
+            sum(v) / len(v) if v else 0
+            for v in genre_prices.values()
+        ]
+    }).sort_values("Avg Price", ascending=False).head(5)
 
     # =================================================
-    # 4. SIDE BY SIDE CHARTS
+    # CHARTS SIDE BY SIDE
     # =================================================
     col1, col2 = st.columns(2)
 
@@ -477,26 +474,29 @@ if st.session_state.page == "trending":
         )
         st.plotly_chart(fig2, use_container_width=True)
 
-
     # =================================================
-    # 5. CLEAN TABLE (NO DUPLICATES, NO AMP BUG)
+    # CLEAN TABLE (NO DUPLICATES)
     # =================================================
     trending_display = trending_df.copy()
 
-    # rebuild clean genre column from cleaned data
-    clean_map = (
-        exploded.groupby("book title")["genre_clean"]
-        .apply(lambda x: ", ".join(sorted(set(x))))
-        .reset_index()
+    # HARD REMOVE any genre-related columns
+    trending_display = trending_display.drop(
+        columns=[c for c in trending_display.columns if "genre" in c.lower()],
+        errors="ignore"
     )
 
-    trending_display = trending_display.merge(clean_map, on="book title", how="left")
-    trending_display.rename(columns={"genre_clean": "Genre"}, inplace=True)
+    # rebuild clean Genre column
+    def format_genre(x):
+        if isinstance(x, list):
+            return ", ".join([clean_genre(i) for i in x if clean_genre(i)])
+        return ""
 
-    # remove duplicate columns safely
-    trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()]
+    trending_display["Genre"] = trending_df["genre"].apply(format_genre)
 
-    # column order
+    # enforce uniqueness
+    trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
+
+    # reorder
     cols = list(trending_display.columns)
     cols = [c for c in cols if c != "Genre"]
     cols.insert(cols.index("book title") + 1, "Genre")
