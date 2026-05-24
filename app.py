@@ -101,33 +101,9 @@ ACCESSIBLE_COLOURS = [
 ]
 
 # =====================================================
-# NAVIGATION (WITH OVERVIEW BUTTON)
-# =====================================================
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    home_btn = st.button("🏠 Overview")
-
-with col2:
-    trending_btn = st.button("📈 Trending")
-
-with col3:
-    speak_all_btn = st.button("🔊 Read Page")
-
-if "page" not in st.session_state:
-    st.session_state.page = "home"
-
-if home_btn:
-    st.session_state.page = "home"
-
-if trending_btn:
-    st.session_state.page = "trending"
-
-# =====================================================
-# TEXT TO SPEECH (SAFE + FIXED)
+# TEXT-TO-SPEECH CONTROLLER
 # =====================================================
 def audio_controls(text):
-    safe_text = str(text).replace("\n", " ").replace("`", "")
 
     html_code = f"""
     <div style="display:flex; gap:10px; margin:10px 0;">
@@ -142,7 +118,7 @@ def audio_controls(text):
 
     function startSpeech() {{
         window.speechSynthesis.cancel();
-        utterance = new SpeechSynthesisUtterance("{safe_text}");
+        utterance = new SpeechSynthesisUtterance(`{text}`);
         utterance.rate = 0.9;
         window.speechSynthesis.speak(utterance);
     }}
@@ -189,7 +165,8 @@ def recommend_books(title, top_n=5):
         if len(results) == top_n:
             break
 
-    return df_cb.iloc[results][["book_title", "rating", "categories"]]
+    return df_cb.iloc[results][["book_title", "rating", "categories"]].reset_index(drop=True)
+
 
 def recommend_by_genre(genre):
 
@@ -200,7 +177,27 @@ def recommend_by_genre(genre):
     df = df.drop_duplicates(subset=["book_title"])
     df = df.sort_values("rating", ascending=False).head(5)
 
-    return df[["book_title", "rating", "categories"]]
+    return df[["book_title", "rating", "categories"]].reset_index(drop=True)
+
+# =====================================================
+# NAVIGATION
+# =====================================================
+col1, col2 = st.columns(2)
+
+with col1:
+    home_btn = st.button("Home")
+
+with col2:
+    trending_btn = st.button("Top 100 Trending Books")
+
+if "page" not in st.session_state:
+    st.session_state.page = "home"
+
+if home_btn:
+    st.session_state.page = "home"
+
+if trending_btn:
+    st.session_state.page = "trending"
 
 # =====================================================
 # CARD DISPLAY
@@ -240,31 +237,25 @@ if st.session_state.page == "home":
     col1, col2 = st.columns(2)
 
     with col1:
-        st.subheader("Content-Based Recommendations")
+        st.subheader("Book Recommendations")
         if selected_book:
             rec = recommend_books(selected_book)
             show_cards(rec)
 
-            audio_controls(
-                "Content based recommendations: " +
-                rec.to_string(index=False)
-            )
+            audio_controls("Content based recommendations. " + rec.to_string(index=False))
 
     with col2:
-        st.subheader("Genre-Based Recommendations")
+        st.subheader("Genre Recommendations")
         if selected_genre:
             rec2 = recommend_by_genre(selected_genre)
             show_cards(rec2)
 
-            audio_controls(
-                "Genre based recommendations: " +
-                rec2.to_string(index=False)
-            )
+            audio_controls("Genre based recommendations. " + rec2.to_string(index=False))
 
     st.divider()
 
     # =====================================================
-    # GRAPHS
+    # GRAPHS SIDE BY SIDE (FIXED AXIS)
     # =====================================================
     col1, col2 = st.columns(2)
 
@@ -280,6 +271,16 @@ if st.session_state.page == "home":
             y="Count",
             color="Genre",
             color_discrete_sequence=ACCESSIBLE_COLOURS
+        )
+
+        fig.update_layout(
+            xaxis=dict(
+                showticklabels=False,
+                showgrid=False,
+                title=""
+            ),
+            yaxis=dict(showgrid=False),
+            plot_bgcolor="white"
         )
 
         st.plotly_chart(fig, use_container_width=True)
@@ -298,12 +299,22 @@ if st.session_state.page == "home":
             color_discrete_sequence=ACCESSIBLE_COLOURS
         )
 
+        fig.update_layout(
+            xaxis=dict(
+                showticklabels=False,
+                showgrid=False,
+                title=""
+            ),
+            yaxis=dict(showgrid=False),
+            plot_bgcolor="white"
+        )
+
         st.plotly_chart(fig, use_container_width=True)
 
     st.divider()
 
     # =====================================================
-    # TREND OVER TIME + AUDIO
+    # TREND OVER TIME (UNCHANGED YEAR AXIS)
     # =====================================================
     st.subheader("Reading Trends Over Time")
 
@@ -311,30 +322,37 @@ if st.session_state.page == "home":
     clean["year"] = clean["timestamp"].dt.year
 
     top5 = clean["categories"].value_counts().head(5).index
-    trend = clean[clean["categories"].isin(top5)]
+    trend = clean[clean["categories"].isin(top5)].copy()
 
     min_year = int(clean["year"].min())
     max_year = int(clean["year"].max())
 
     year_range = st.slider(
         "Select year range",
-        min_year,
-        max_year,
-        (min_year, max_year)
+        min_value=min_year,
+        max_value=max_year,
+        value=(min_year, max_year)
     )
 
-    trend = trend[
-        (trend["year"] >= year_range[0]) &
-        (trend["year"] <= year_range[1])
-    ]
+    start_year, end_year = year_range
+
+    trend = trend[(trend["year"] >= start_year) & (trend["year"] <= end_year)]
 
     chart = trend.groupby(["year", "categories"]).size().unstack(fill_value=0)
 
-    st.line_chart(chart)
-
-    audio_controls(
-        "Reading trends over time: " + chart.to_string()
+    fig = px.line(
+        chart,
+        markers=True,
+        color_discrete_sequence=ACCESSIBLE_COLOURS
     )
+
+    fig.update_layout(
+        xaxis=dict(title="Year", showgrid=False),
+        yaxis=dict(showgrid=False),
+        plot_bgcolor="white"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
 
 # =====================================================
 # TRENDING PAGE
@@ -344,12 +362,8 @@ if st.session_state.page == "trending":
     st.header("Top 100 Trending Books")
 
     st.dataframe(
-        trending,
+        trending.reset_index(drop=True),
         use_container_width=True,
-        height=800
-    )
-
-    audio_controls(
-        "Top 100 trending books. " +
-        trending.head(20).to_string(index=False)
+        hide_index=True,
+        height=900
     )
