@@ -7,19 +7,16 @@ import streamlit.components.v1 as components
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 
-# =====================================================
-# PAGE SETUP
-# =====================================================
+
 st.set_page_config(
     page_title="Book Dashboard",
     layout="wide"
 )
 
-st.title("📚 Book Analytics Dashboard")
+st.title("Book Analytics Dashboard")
 
-# =====================================================
-# ACCESSIBLE THEME
-# =====================================================
+# Accessible theme
+# https://dashboards.mysidewalk.com/style-guide-for-dashboards/bar-charts-old
 st.markdown("""
 <style>
 
@@ -52,9 +49,7 @@ div.stButton > button {
 </style>
 """, unsafe_allow_html=True)
 
-# =====================================================
-# LOAD DATA
-# =====================================================
+# https://medium.com/@verinamk/streamlit-for-beginners-build-your-first-dashboard-58b764a62a2d
 @st.cache_data
 def load_data():
     books = pd.read_csv("books_clean.csv")
@@ -64,9 +59,9 @@ def load_data():
 
 books, trending = load_data()
 
-# =====================================================
-# MODEL
-# =====================================================
+# big app + lots of data= using @ stops very long load tim
+# https://docs.streamlit.io/develop/concepts/architecture/caching
+# https://medium.com/@heyamit10/benefits-of-using-streamlit-cache-for-faster-apps-006632d673ef
 @st.cache_data
 def build_model(df):
     df = df.dropna(subset=["content", "book_title"]).copy()
@@ -86,9 +81,8 @@ def build_model(df):
 
 content_sim, book_idx, df_cb = build_model(books)
 
-# =====================================================
-# COLOURS
-# =====================================================
+# https://davidmathlogic.com/colorblind/#%23D81B60-%231E88E5-%23FFC107-%23004D40
+# https://dashboards.mysidewalk.com/style-guide-for-dashboards/color
 ACCESSIBLE_COLOURS = [
     "#c94c4c",
     "#e07a5f",
@@ -100,9 +94,8 @@ ACCESSIBLE_COLOURS = [
     "#2f2f2f"
 ]
 
-# =====================================================
-# TEXT-TO-SPEECH CONTROLLER
-# =====================================================
+#https://discuss.streamlit.io/t/text-to-speech-in-streamlt-cloud/66848
+# https://medium.com/@pavlo_sydorenko/add-text-to-speech-to-your-web-app-with-5-lines-of-python-code-8c4707f2dc93
 def audio_controls(text):
 
     html_code = f"""
@@ -139,9 +132,8 @@ def audio_controls(text):
 
     components.html(html_code, height=120)
 
-# =====================================================
-# RECOMMENDATIONS
-# =====================================================
+# recs : book and genre based
+# using content based due to data sparsity
 def recommend_books(title, top_n=5):
 
     if title not in book_idx:
@@ -179,9 +171,7 @@ def recommend_by_genre(genre):
 
     return df[["book_title", "rating", "categories"]].reset_index(drop=True)
 
-# =====================================================
-# NAVIGATION
-# =====================================================
+# buttons
 col1, col2 = st.columns(2)
 
 with col1:
@@ -199,9 +189,8 @@ if home_btn:
 if trending_btn:
     st.session_state.page = "trending"
 
-# =====================================================
-# CARD DISPLAY
-# =====================================================
+# card display looks cleaner
+# https://discuss.streamlit.io/t/new-component-streamlit-product-card/113494
 def show_cards(df):
     for _, row in df.iterrows():
         st.markdown(f"""
@@ -212,9 +201,7 @@ def show_cards(df):
         </div>
         """, unsafe_allow_html=True)
 
-# =====================================================
-# HOME PAGE
-# =====================================================
+# main page
 if st.session_state.page == "home":
 
     st.header("Overview")
@@ -254,9 +241,8 @@ if st.session_state.page == "home":
 
     st.divider()
 
-    # =====================================================
-    # GRAPHS SIDE BY SIDE (FIXED AXIS)
-    # =====================================================
+    # Graphs to show top genres and authors - impo for rec system
+    # counts based
     col1, col2 = st.columns(2)
 
     with col1:
@@ -313,9 +299,7 @@ if st.session_state.page == "home":
 
     st.divider()
 
-    # =====================================================
-    # TREND OVER TIME (UNCHANGED YEAR AXIS)
-    # =====================================================
+    # trend over time - more complex but good for some
     st.subheader("Reading Trends Over Time")
 
     clean = books.dropna(subset=["timestamp", "categories"]).copy()
@@ -354,9 +338,7 @@ if st.session_state.page == "home":
 
     st.plotly_chart(fig, use_container_width=True)
 
-# =====================================================
-# TRENDING PAGE
-# =====================================================
+# Using top 100 books df to illustrate top books atm according to nyt
 if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
