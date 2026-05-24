@@ -366,7 +366,7 @@ if st.session_state.page == "home":
 # try to find more updated version if possible?
 if st.session_state.page == "trending":
 
-    st.header("Top 100 Trending Books")
+    st.header("Top 100 Trending Books in 2023")
 
     # 🔊 PAGE OVERVIEW AUDIO
     audio_controls(
