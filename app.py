@@ -28,18 +28,29 @@ st.markdown(
         color: #5b4636;
     }
 
+    p, div {
+        font-size: 18px;
+    }
+
     div.stButton > button {
         background-color: #c9895b;
         color: white;
-        font-size: 20px;
-        border-radius: 10px;
-        padding: 10px;
+        font-size: 22px;
+        border-radius: 12px;
+        padding: 14px;
         width: 100%;
+        border: none;
     }
 
     div.stButton > button:hover {
         background-color: #a96f45;
         color: white;
+    }
+
+    .stSelectbox label {
+        font-size: 18px;
+        font-weight: bold;
+        color: #5b4636;
     }
 
     </style>
@@ -55,7 +66,13 @@ st.markdown(
 def load_data():
 
     books = pd.read_csv('books_clean.csv')
+
     trending = pd.read_csv('trending_clean.csv')
+
+    books['timestamp'] = pd.to_datetime(
+        books['timestamp'],
+        errors='coerce'
+    )
 
     return books, trending
 
@@ -69,9 +86,18 @@ books, trending = load_data()
 @st.cache_data
 def build_content_model(df):
 
-    df = df.dropna(subset=['content', 'book_title']).copy()
+    df = df.dropna(
+        subset=['content', 'book_title']
+    ).copy()
 
-    df = df.sample(min(5000, len(df)), random_state=42)
+    # smaller sample for performance
+    df = (
+        df.sample(
+            min(5000, len(df)),
+            random_state=42
+        )
+        .reset_index(drop=True)
+    )
 
     tfidf = TfidfVectorizer(
         stop_words='english',
@@ -82,8 +108,9 @@ def build_content_model(df):
 
     sim = cosine_similarity(tfidf_matrix)
 
+    # FIXED INDEXING
     book_index = pd.Series(
-        df.index,
+        range(len(df)),
         index=df['book_title']
     ).drop_duplicates()
 
@@ -117,9 +144,21 @@ def recommend_books(title, top_n=10):
         ['book_title', 'rating', 'categories']
     ].copy()
 
-    recs['similarity'] = [i[1] for i in scores]
+    recs['similarity'] = [
+        round(i[1], 2)
+        for i in scores
+    ]
 
-    return recs.drop_duplicates(subset='book_title')
+    recs.columns = [
+        'Book Title',
+        'Reader Rating',
+        'Genre',
+        'Similarity Score'
+    ]
+
+    return recs.drop_duplicates(
+        subset='Book Title'
+    )
 
 
 # =====================================================
@@ -138,35 +177,57 @@ def recommend_by_genre(genre):
     ]
 
     genre_df = (
-        genre_df[['book_title', 'rating', 'categories']]
+        genre_df[
+            ['book_title', 'rating', 'categories']
+        ]
         .drop_duplicates()
-        .sort_values(by='rating', ascending=False)
+        .sort_values(
+            by='rating',
+            ascending=False
+        )
         .head(10)
     )
+
+    genre_df.columns = [
+        'Book Title',
+        'Reader Rating',
+        'Genre'
+    ]
 
     return genre_df
 
 
 # =====================================================
-# BIG NAVIGATION BUTTONS
+# NAVIGATION BUTTONS
 # =====================================================
 col1, col2 = st.columns(2)
 
 with col1:
-    home_btn = st.button('Home Dashboard')
+
+    home_btn = st.button(
+        'Home Dashboard'
+    )
 
 with col2:
-    trending_btn = st.button('Top 100 Trending Books')
+
+    trending_btn = st.button(
+        'Top 100 Trending Books'
+    )
 
 
-# default page
+# =====================================================
+# SESSION STATE
+# =====================================================
 if 'page' not in st.session_state:
+
     st.session_state.page = 'home'
 
 if home_btn:
+
     st.session_state.page = 'home'
 
 if trending_btn:
+
     st.session_state.page = 'trending'
 
 
@@ -175,34 +236,46 @@ if trending_btn:
 # =====================================================
 if st.session_state.page == 'home':
 
-    st.header('Book Recommendations and Insights')
+    st.header(
+        'Book Recommendations and Reading Insights'
+    )
 
     st.write(
-        'Search for books, explore genres, and discover reading trends.'
+        'Search for books, browse genres, and explore reading trends.'
     )
 
     st.divider()
 
-    # =====================================================
-    # RECOMMENDATION BAR
-    # =====================================================
-    st.subheader('Find Similar Books')
+    # =================================================
+    # RECOMMENDATION SECTION
+    # =================================================
+    st.subheader('Find Your Next Book')
 
     col1, col2 = st.columns(2)
 
-    # ---------------- BOOK DROPDOWN ----------------
+    # ---------------------------------------------
+    # BOOK RECOMMENDATIONS
+    # ---------------------------------------------
     with col1:
 
         selected_book = st.selectbox(
             'Choose a Book',
-            sorted(df_cb['book_title'].dropna().unique())
+            sorted(
+                df_cb['book_title']
+                .dropna()
+                .unique()
+            )
         )
 
         if selected_book:
 
-            recommendations = recommend_books(selected_book)
+            recommendations = recommend_books(
+                selected_book
+            )
 
-            st.write('Recommended Books')
+            st.write(
+                'Books You May Enjoy'
+            )
 
             st.dataframe(
                 recommendations,
@@ -210,14 +283,16 @@ if st.session_state.page == 'home':
                 height=350
             )
 
-    # ---------------- GENRE DROPDOWN ----------------
+    # ---------------------------------------------
+    # GENRE RECOMMENDATIONS
+    # ---------------------------------------------
     with col2:
 
-        genres = (
+        genres = sorted(
             books['categories']
             .dropna()
             .astype(str)
-            .sort_values()
+            .str.title()
             .unique()
         )
 
@@ -228,9 +303,13 @@ if st.session_state.page == 'home':
 
         if selected_genre:
 
-            genre_recs = recommend_by_genre(selected_genre)
+            genre_recs = recommend_by_genre(
+                selected_genre
+            )
 
-            st.write('Popular Books in this Genre')
+            st.write(
+                'Popular Books in This Genre'
+            )
 
             st.dataframe(
                 genre_recs,
@@ -240,12 +319,14 @@ if st.session_state.page == 'home':
 
     st.divider()
 
-    # =====================================================
-    # GENRES + AUTHORS SIDE BY SIDE
-    # =====================================================
+    # =================================================
+    # GENRES + AUTHORS
+    # =================================================
     col1, col2 = st.columns(2)
 
-    # ---------------- TOP GENRES ----------------
+    # ---------------------------------------------
+    # TOP GENRES
+    # ---------------------------------------------
     with col1:
 
         st.subheader('Most Popular Genres')
@@ -258,7 +339,9 @@ if st.session_state.page == 'home':
 
         st.bar_chart(top_categories)
 
-    # ---------------- TOP AUTHORS ----------------
+    # ---------------------------------------------
+    # TOP AUTHORS
+    # ---------------------------------------------
     with col2:
 
         st.subheader('Most Popular Authors')
@@ -273,14 +356,11 @@ if st.session_state.page == 'home':
 
     st.divider()
 
-    # =====================================================
-    # BOOKS OVER TIME
-    # =====================================================
-    st.subheader('Popular Genres Over Time')
-
-    books['timestamp'] = pd.to_datetime(
-        books['timestamp'],
-        errors='coerce'
+    # =================================================
+    # GENRES OVER TIME
+    # =================================================
+    st.subheader(
+        'Popular Genres Over Time'
     )
 
     books_clean = books.dropna(
@@ -295,9 +375,11 @@ if st.session_state.page == 'home':
     )
 
     trend_df = books_clean[
-        books_clean['categories'].isin(top5_genres)
-    ]
+        books_clean['categories']
+        .isin(top5_genres)
+    ].copy()
 
+    # monthly timeline
     trend_df['month'] = (
         trend_df['timestamp']
         .dt.to_period('M')
@@ -306,12 +388,17 @@ if st.session_state.page == 'home':
 
     genre_time = (
         trend_df
-        .groupby(['month', 'categories'])
+        .groupby(
+            ['month', 'categories']
+        )
         .size()
         .unstack(fill_value=0)
     )
 
-    st.line_chart(genre_time)
+    st.line_chart(
+        genre_time,
+        use_container_width=True
+    )
 
 
 # =====================================================
@@ -319,10 +406,12 @@ if st.session_state.page == 'home':
 # =====================================================
 if st.session_state.page == 'trending':
 
-    st.header('Top 100 Trending Books')
+    st.header(
+        'Top 100 Trending Books'
+    )
 
     st.write(
-        'Explore the most popular and trending books.'
+        'Browse the most popular books currently trending with readers.'
     )
 
     st.dataframe(
