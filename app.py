@@ -373,55 +373,124 @@ if st.session_state.page == "trending":
         "Below is a table of the most popular books currently trending."
     )
 
-    st.subheader("Top 5 Genres")
+    st.subheader("Top 5 Genres + Average Price per Genre")
 
     trending_df = trending.copy()
-# labels
+
+    # =================================================
+    # SAFE MULTI-LABEL AGGREGATION (NO EXPLODE)
+    # =================================================
     from collections import Counter
 
     genre_counter = Counter()
+    genre_prices = {}
 
-    for genres in trending_df["genre"]:
+    for _, row in trending_df.iterrows():
+        genres = row["genre"]
+        price = row.get("book price", None)
+
         if isinstance(genres, list):
-            genre_counter.update(genres)
+            for g in genres:
 
+                # count genre frequency
+                genre_counter[g] += 1
+
+                # store prices for averaging
+                if g not in genre_prices:
+                    genre_prices[g] = []
+
+                if pd.notna(price):
+                    genre_prices[g].append(price)
+
+    # =================================================
+    # TOP GENRES (COUNT)
+    # =================================================
     top_genres = (
         pd.DataFrame(genre_counter.items(), columns=["Genre", "Count"])
         .sort_values("Count", ascending=False)
         .head(5)
     )
 
-    fig = px.bar(
-        top_genres,
-        x="Genre",
-        y="Count",
-        color="Genre",
-        color_discrete_sequence=ACCESSIBLE_COLOURS
+    # =================================================
+    # AVERAGE PRICE PER GENRE
+    # =================================================
+    avg_price = (
+        pd.DataFrame({
+            "Genre": list(genre_prices.keys()),
+            "Avg Price": [
+                sum(v) / len(v) if len(v) > 0 else 0
+                for v in genre_prices.values()
+            ]
+        })
+        .sort_values("Avg Price", ascending=False)
+        .head(5)
     )
 
-    fig.update_layout(
-        xaxis=dict(showticklabels=False, showgrid=False, title=""),
-        yaxis=dict(showgrid=False),
-        plot_bgcolor="white"
-    )
+    # =================================================
+    # SIDE-BY-SIDE CHARTS
+    # =================================================
+    col1, col2 = st.columns(2)
 
-    st.plotly_chart(fig, use_container_width=True)
-# using json for genre lists
+    with col1:
+        fig1 = px.bar(
+            top_genres,
+            x="Genre",
+            y="Count",
+            color="Genre",
+            color_discrete_sequence=ACCESSIBLE_COLOURS
+        )
+
+        fig1.update_layout(
+            xaxis=dict(showticklabels=False, showgrid=False, title=""),
+            yaxis=dict(showgrid=False),
+            plot_bgcolor="white"
+        )
+
+        st.plotly_chart(fig1, use_container_width=True)
+
+    with col2:
+        fig2 = px.bar(
+            avg_price,
+            x="Genre",
+            y="Avg Price",
+            color="Genre",
+            color_discrete_sequence=ACCESSIBLE_COLOURS
+        )
+
+        fig2.update_layout(
+            xaxis=dict(showticklabels=False, showgrid=False, title=""),
+            yaxis=dict(showgrid=False),
+            plot_bgcolor="white"
+        )
+
+        st.plotly_chart(fig2, use_container_width=True)
+
+    # =================================================
+    # CLEAN TABLE DISPLAY (NO DUPLICATE COLUMNS CRASH)
+    # =================================================
     trending_display = trending_df.copy()
-    for col in ["Genre", "genre"]:
-        if col in trending_display.columns:
-            trending_display = trending_display.drop(columns=col)
+
+    # remove any possible duplicate columns
+    trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
+
+    # rebuild readable genre column
     trending_display["Genre"] = trending_df["genre"].apply(
         lambda x: ", ".join(x) if isinstance(x, list) else ""
     )
-    trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
+
+    # safe column ordering
     cols = list(trending_display.columns)
+
+    # remove Genre if it already exists somewhere
     cols = [c for c in cols if c != "Genre"]
 
+    # insert after book title
     insert_pos = cols.index("book title") + 1
     cols.insert(insert_pos, "Genre")
 
     trending_display = trending_display[cols]
+
+    # final safety check
     assert trending_display.columns.is_unique, "Duplicate columns detected!"
 
     st.dataframe(
