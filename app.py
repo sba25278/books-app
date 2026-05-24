@@ -24,7 +24,7 @@ st.markdown(
     <style>
 
     .stApp {
-        background-color: #f7f1e6;  /* softer cream */
+        background-color: #f7f1e6;
     }
 
     h1, h2, h3 {
@@ -80,7 +80,6 @@ books, trending = load_data()
 def build_content_model(df):
 
     df = df.dropna(subset=['content', 'book_title']).copy()
-
     df = df.sample(min(5000, len(df)), random_state=42).reset_index(drop=True)
 
     tfidf = TfidfVectorizer(stop_words='english', max_features=2000)
@@ -97,7 +96,7 @@ content_sim, book_idx, df_cb = build_content_model(books)
 
 
 # =====================================================
-# RECOMMENDATION FUNCTION
+# RECOMMENDATION FUNCTION (FIXED)
 # =====================================================
 def recommend_books(title, top_n=10):
 
@@ -106,15 +105,21 @@ def recommend_books(title, top_n=10):
 
     idx = book_idx[title]
 
-    scores = list(enumerate(content_sim[idx]))
+    # FIX: flatten prevents array ambiguity bugs
+    scores = list(enumerate(content_sim[idx].flatten()))
 
-    scores = sorted(scores, key=lambda x: x[1], reverse=True)[1:top_n + 1]
+    # FIX: force float sorting safety
+    scores = sorted(
+        scores,
+        key=lambda x: float(x[1]),
+        reverse=True
+    )[1:top_n + 1]
 
     indices = [i[0] for i in scores]
 
     recs = df_cb.iloc[indices][['book_title', 'rating', 'categories']].copy()
 
-    recs['similarity'] = [round(i[1], 2) for i in scores]
+    recs['similarity'] = [round(float(i[1]), 2) for i in scores]
 
     recs.columns = ['Book Title', 'Reader Rating', 'Genre', 'Similarity Score']
 
@@ -144,7 +149,7 @@ def recommend_by_genre(genre):
 
 
 # =====================================================
-# NAVIGATION BUTTONS
+# NAVIGATION
 # =====================================================
 col1, col2 = st.columns(2)
 
@@ -174,14 +179,11 @@ if st.session_state.page == 'home':
 
     st.divider()
 
-    # =================================================
-    # RECOMMENDATION SECTION
-    # =================================================
+    # ---------------- RECOMMENDATIONS ----------------
     st.subheader('Find Your Next Book')
 
     col1, col2 = st.columns(2)
 
-    # BOOK RECS
     with col1:
 
         selected_book = st.selectbox(
@@ -191,10 +193,8 @@ if st.session_state.page == 'home':
 
         if selected_book:
             recommendations = recommend_books(selected_book)
-
             st.dataframe(recommendations, use_container_width=True, height=350)
 
-    # GENRE RECS
     with col2:
 
         selected_genre = st.selectbox(
@@ -204,19 +204,15 @@ if st.session_state.page == 'home':
 
         if selected_genre:
             genre_recs = recommend_by_genre(selected_genre)
-
             st.dataframe(genre_recs, use_container_width=True, height=350)
 
 
     st.divider()
 
-    # =================================================
-    # WARM COLOUR BAR CHARTS
-    # =================================================
+    # ---------------- CHARTS ----------------
     col1, col2 = st.columns(2)
 
     with col1:
-
         st.subheader('Most Popular Genres')
 
         top_categories = books['categories'].value_counts().head(10).reset_index()
@@ -233,7 +229,6 @@ if st.session_state.page == 'home':
         st.plotly_chart(fig, use_container_width=True)
 
     with col2:
-
         st.subheader('Most Popular Authors')
 
         top_authors = books['store'].value_counts().head(10).reset_index()
@@ -252,9 +247,7 @@ if st.session_state.page == 'home':
 
     st.divider()
 
-    # =================================================
-    # DOUBLE-ENDED SLIDER TIME SERIES
-    # =================================================
+    # ---------------- TIME SERIES + SLIDER ----------------
     st.subheader('Popular Genres Over Time')
 
     books_clean = books.dropna(subset=['timestamp', 'categories']).copy()
