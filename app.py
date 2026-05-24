@@ -376,10 +376,7 @@ if st.session_state.page == "trending":
     st.subheader("Top 5 Genres")
 
     trending_df = trending.copy()
-
-    # =================================================
-    # SAFE MULTI-LABEL GENRE HANDLING
-    # =================================================
+# labels
     from collections import Counter
 
     genre_counter = Counter()
@@ -409,48 +406,22 @@ if st.session_state.page == "trending":
     )
 
     st.plotly_chart(fig, use_container_width=True)
-
-    # =================================================
-    # TABLE (FULL DUPLICATE-SAFE FIX)
-    # =================================================
+# using json for genre lists
     trending_display = trending_df.copy()
-
-    # -------------------------------------------------
-    # STEP 1: REMOVE ANY EXISTING GENRE COLUMNS SAFELY
-    # -------------------------------------------------
     for col in ["Genre", "genre"]:
         if col in trending_display.columns:
             trending_display = trending_display.drop(columns=col)
-
-    # -------------------------------------------------
-    # STEP 2: RECREATE CLEAN GENRE COLUMN
-    # -------------------------------------------------
     trending_display["Genre"] = trending_df["genre"].apply(
         lambda x: ", ".join(x) if isinstance(x, list) else ""
     )
-
-    # -------------------------------------------------
-    # STEP 3: FORCE UNIQUE COLUMNS (CRASH PROTECTION)
-    # -------------------------------------------------
     trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
-
-    # -------------------------------------------------
-    # STEP 4: REORDER COLUMNS SAFELY
-    # -------------------------------------------------
     cols = list(trending_display.columns)
-
-    # ensure Genre is not duplicated in ordering
     cols = [c for c in cols if c != "Genre"]
 
-    # insert after book title
     insert_pos = cols.index("book title") + 1
     cols.insert(insert_pos, "Genre")
 
     trending_display = trending_display[cols]
-
-    # -------------------------------------------------
-    # FINAL SAFETY CHECK (prevents Streamlit crash)
-    # -------------------------------------------------
     assert trending_display.columns.is_unique, "Duplicate columns detected!"
 
     st.dataframe(
