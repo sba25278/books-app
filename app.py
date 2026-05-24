@@ -62,7 +62,7 @@ div.stButton > button {
 @st.cache_data
 def load_data():
     books = pd.read_csv("books_clean.csv")
-    trending = pd.read_csv("trending_clean.csv")
+    trending = pd.read_json("trending_clean.json")
     books["timestamp"] = pd.to_datetime(books["timestamp"], errors="coerce")
     return books, trending
 
@@ -368,58 +368,30 @@ if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books in 2023")
 
-    # 🔊 PAGE OVERVIEW AUDIO
     audio_controls(
         "Top 100 trending books page. This chart shows the top 5 genres in 2023. "
         "Below is a table of the most popular books currently trending."
     )
 
-    st.subheader("Top 5 Genres (by frequency)")
+    st.subheader("Top 5 Genres (clean multi-label system)")
 
     trending_df = trending.copy()
 
-    # ensure numeric
-    trending_df["book price"] = pd.to_numeric(trending_df["book price"], errors="coerce")
-
     # =================================================
-    # CLEAN + SPLIT GENRES (ROBUST)
+    # TOP GENRES (NO EXPLODE - SAFE MULTI-LABEL SYSTEM)
     # =================================================
-    trending_df["genre_split"] = (
-        trending_df["genre"]
-        .astype(str)
-        .str.lower()
-        .str.replace("&", "|", regex=False)
-        .str.replace("/", "|", regex=False)
-        .str.replace(",", "|", regex=False)
-        .str.split("|")
-    )
+    from collections import Counter
 
-    # explode
-    exploded = trending_df.explode("genre_split")
+    genre_counter = Counter()
 
-    # clean whitespace + remove junk
-    exploded["genre_split"] = exploded["genre_split"].str.strip()
+    for genres in trending_df["genre"]:
+        genre_counter.update(genres)
 
-    exploded = exploded[
-        exploded["genre_split"].notna()
-        & (exploded["genre_split"] != "")
-        & (~exploded["genre_split"].isin(["and", "&"]))
-    ]
-
-    # remove duplicates (important for correctness)
-    exploded = exploded.drop_duplicates(subset=["book title", "genre_split"])
-
-    # =================================================
-    # TOP 5 GENRES CHART
-    # =================================================
     top_genres = (
-        exploded["genre_split"]
-        .value_counts()
+        pd.DataFrame(genre_counter.items(), columns=["Genre", "Count"])
+        .sort_values("Count", ascending=False)
         .head(5)
-        .reset_index()
     )
-
-    top_genres.columns = ["Genre", "Count"]
 
     fig = px.bar(
         top_genres,
@@ -438,32 +410,23 @@ if st.session_state.page == "trending":
     st.plotly_chart(fig, use_container_width=True)
 
     # =================================================
-    # CLEAN TABLE DISPLAY (SAFE + CONSISTENT)
+    # TABLE (CLEAN DISPLAY)
     # =================================================
     trending_display = trending_df.copy()
 
-    # prevent duplicate columns crash
-    trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
-
-    # optional: show cleaned genre as readable string
-    trending_display["Genre"] = trending_display["genre_split"].apply(
+    trending_display["Genre"] = trending_display["genre"].apply(
         lambda x: ", ".join(x) if isinstance(x, list) else ""
     )
 
-    # reorder columns
     cols = trending_display.columns.tolist()
 
-    for col in ["genre", "genre_split"]:
-        if col in cols:
-            cols.remove(col)
-
-    insert_pos = cols.index("book title") + 1
-    cols.insert(insert_pos, "Genre")
+    cols.remove("genre")
+    cols.insert(cols.index("book title") + 1, "Genre")
 
     trending_display = trending_display[cols]
 
     st.dataframe(
-        trending_display.reset_index(drop=True),
+        trending_display,
         use_container_width=True,
         hide_index=True,
         height=900
