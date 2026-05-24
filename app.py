@@ -19,17 +19,27 @@ st.title("📚 Book Analytics Dashboard")
 
 
 # =====================================================
-# SIMPLE BACKGROUND STYLE (LIGHT CREAM)
+# SIMPLE CREAM THEME
 # =====================================================
 st.markdown(
     """
     <style>
+
     .stApp {
         background-color: #f7f3ea;
     }
 
     h1, h2, h3 {
         color: #4a3b2a;
+    }
+
+    .book-card {
+        background-color: white;
+        padding: 15px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        border: 1px solid #e6d9c8;
+        box-shadow: 1px 1px 6px rgba(0,0,0,0.05);
     }
 
     div.stButton > button {
@@ -93,17 +103,16 @@ content_sim, book_idx, df_cb = build_model(books)
 
 
 # =====================================================
-# FIXED RECOMMENDATION (NO DUPLICATES)
+# RECOMMENDATION (NO DUPLICATES)
 # =====================================================
 def recommend_books(title, top_n=5):
 
     if title not in book_idx:
-        return pd.DataFrame()
+        return []
 
     idx = book_idx[title]
 
     scores = list(enumerate(content_sim[idx]))
-
     scores = sorted(scores, key=lambda x: x[1], reverse=True)
 
     seen = set()
@@ -114,24 +123,16 @@ def recommend_books(title, top_n=5):
 
         if book != title and book not in seen:
             seen.add(book)
-            results.append((i, score))
+            results.append(i)
 
         if len(results) == top_n:
             break
 
-    rows = [r[0] for r in results]
-    scores = [r[1] for r in results]
-
-    recs = df_cb.iloc[rows][["book_title", "rating", "categories"]].copy()
-    recs["similarity"] = [round(float(s), 2) for s in scores]
-
-    recs.columns = ["Book Title", "Rating", "Genre", "Match Score"]
-
-    return recs.reset_index(drop=True)
+    return df_cb.iloc[results][["book_title", "rating", "categories"]].reset_index(drop=True)
 
 
 # =====================================================
-# GENRE RECOMMENDATION (NO DUPLICATES)
+# GENRE RECOMMENDATION
 # =====================================================
 def recommend_by_genre(genre):
 
@@ -140,17 +141,13 @@ def recommend_by_genre(genre):
     ]
 
     df = df.drop_duplicates(subset=["book_title"])
+    df = df.sort_values("rating", ascending=False).head(5)
 
-    df = df[["book_title", "rating", "categories"]]
-    df = df.sort_values("rating", ascending=False).head(5).reset_index(drop=True)
-
-    df.columns = ["Book Title", "Rating", "Genre"]
-
-    return df
+    return df[["book_title", "rating", "categories"]].reset_index(drop=True)
 
 
 # =====================================================
-# NAVIGATION (RESTORED BUTTON)
+# NAVIGATION
 # =====================================================
 col1, col2 = st.columns(2)
 
@@ -171,12 +168,28 @@ if trending_btn:
 
 
 # =====================================================
+# CARD DISPLAY FUNCTION
+# =====================================================
+def show_cards(df):
+    for _, row in df.iterrows():
+        st.markdown(
+            f"""
+            <div class="book-card">
+                <b>{row['book_title']}</b><br>
+                ⭐ Rating: {row['rating']}<br>
+                📚 Genre: {row['categories']}
+            </div>
+            """,
+            unsafe_allow_html=True
+        )
+
+
+# =====================================================
 # HOME PAGE
 # =====================================================
 if st.session_state.page == "home":
 
     st.header("Overview")
-
     st.divider()
 
     # ---------------- INPUTS ----------------
@@ -202,14 +215,14 @@ if st.session_state.page == "home":
 
         if selected_book:
             recs = recommend_books(selected_book)
-            st.dataframe(recs, use_container_width=True)
+            show_cards(recs)
 
     with col2:
         st.subheader("Genre Recommendations")
 
         if selected_genre:
             recs = recommend_by_genre(selected_genre)
-            st.dataframe(recs, use_container_width=True)
+            show_cards(recs)
 
     st.divider()
 
@@ -273,7 +286,4 @@ if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
 
-    st.dataframe(
-        trending.reset_index(drop=True),
-        use_container_width=True
-    )
+    st.dataframe(trending.reset_index(drop=True), use_container_width=True)
