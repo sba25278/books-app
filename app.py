@@ -375,36 +375,7 @@ if st.session_state.page == "trending":
 
     st.subheader("Trending Insights")
 
-    # rating
-    genre_rating = (
-        trending
-        .groupby("genre")["rating"]
-        .mean()
-        .sort_values(ascending=False)
-        .head(10)
-        .reset_index()
-    )
-
-    genre_rating.columns = ["Genre", "Avg Rating"]
-
-    fig1 = px.bar(
-        genre_rating,
-        x="Genre",
-        y="Avg Rating",
-        color="Genre",
-        color_discrete_sequence=ACCESSIBLE_COLOURS
-    )
-
-    fig1.update_layout(
-        xaxis=dict(showticklabels=False, showgrid=False, title=""),
-        yaxis=dict(showgrid=False),
-        plot_bgcolor="white",
-        margin=dict(l=10, r=10, t=20, b=10)
-    )
-
-    st.plotly_chart(fig1, use_container_width=True)
-
-
+   
     #price
     price_by_genre = (
         trending
