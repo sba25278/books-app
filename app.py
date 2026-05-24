@@ -286,4 +286,6 @@ if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
 
-    st.dataframe(trending.reset_index(drop=True), use_container_width=True)
+    st.markdown("### Scroll through all books below")
+
+    st.dataframe(trending, use_container_width=True, hide_index=True)
