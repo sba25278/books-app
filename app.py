@@ -26,11 +26,11 @@ st.markdown(
     <style>
 
     .stApp {
-        background-color: #f5f2ea;  /* soft warm neutral */
+        background-color: #f5f2ea;
     }
 
     h1, h2, h3 {
-        color: #2f2f2f;  /* strong readable dark grey */
+        color: #2f2f2f;
     }
 
     .book-card {
@@ -52,7 +52,7 @@ st.markdown(
     }
 
     div.stButton > button {
-        background-color: #4a6fa5;  /* calm accessible blue */
+        background-color: #4a6fa5;
         color: white;
         font-size: 18px;
         border-radius: 8px;
@@ -77,9 +77,7 @@ st.markdown(
 def load_data():
     books = pd.read_csv("books_clean.csv")
     trending = pd.read_csv("trending_clean.csv")
-
     books["timestamp"] = pd.to_datetime(books["timestamp"], errors="coerce")
-
     return books, trending
 
 
@@ -112,7 +110,7 @@ content_sim, book_idx, df_cb = build_model(books)
 
 
 # =====================================================
-# RECOMMENDATION FUNCTION
+# RECOMMENDATIONS (SIMPLE)
 # =====================================================
 def recommend_books(title, top_n=5):
 
@@ -140,9 +138,6 @@ def recommend_books(title, top_n=5):
     return df_cb.iloc[results][["book_title", "rating", "categories"]].reset_index(drop=True)
 
 
-# =====================================================
-# GENRE RECOMMENDATION
-# =====================================================
 def recommend_by_genre(genre):
 
     df = books[
@@ -177,7 +172,7 @@ if trending_btn:
 
 
 # =====================================================
-# CARD DISPLAY FUNCTION
+# CARD DISPLAY
 # =====================================================
 def show_cards(df):
     for _, row in df.iterrows():
@@ -230,103 +225,76 @@ if st.session_state.page == "home":
     st.divider()
 
     # =================================================
-    # GRAPHS (ACCESSIBLE COLOURS)
-    # =================================================
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
-        st.subheader("Top Genres")
-
-        g = books["categories"].value_counts().head(8).reset_index()
-        g.columns = ["Genre", "Count"]
-
-        fig = px.bar(
-            g,
-            x="Genre",
-            y="Count",
-            color="Genre",
-            color_discrete_sequence=[
-                "#4a6fa5",  # blue
-                "#6b8e23",  # olive green (soft, readable)
-                "#8b5e3c",  # brown
-                "#5f6f7a",  # slate grey
-                "#a66c4f",
-                "#3f6c6d",
-                "#7a7a7a",
-                "#2f2f2f"
-            ]
-        )
-
-        fig.update_layout(
-            xaxis=dict(showticklabels=False, showgrid=False),
-            yaxis=dict(showgrid=False),
-            plot_bgcolor="white",
-            margin=dict(l=10, r=10, t=30, b=10)
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    with col2:
-        st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
-        st.subheader("Top Authors")
-
-        a = books["store"].value_counts().head(8).reset_index()
-        a.columns = ["Author", "Count"]
-
-        fig = px.bar(
-            a,
-            x="Author",
-            y="Count",
-            color="Author",
-            color_discrete_sequence=[
-                "#3f6c6d",
-                "#4a6fa5",
-                "#8b5e3c",
-                "#6b8e23",
-                "#5f6f7a",
-                "#a66c4f",
-                "#2f2f2f",
-                "#7a7a7a"
-            ]
-        )
-
-        fig.update_layout(
-            xaxis=dict(showticklabels=False, showgrid=False),
-            yaxis=dict(showgrid=False),
-            plot_bgcolor="white",
-            margin=dict(l=10, r=10, t=30, b=10)
-        )
-
-        st.plotly_chart(fig, use_container_width=True)
-        st.markdown('</div>', unsafe_allow_html=True)
-
-    st.divider()
-
-    # =================================================
-    # TREND OVER TIME (NO AXIS + ACCESSIBLE)
+    # TOP GENRES
     # =================================================
     st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
-    st.subheader("Reading Trends Over Time")
+    st.subheader("Top Genres")
 
-    clean = books.dropna(subset=["timestamp", "categories"]).copy()
+    g = books["categories"].value_counts().head(8).reset_index()
+    g.columns = ["Genre", "Count"]
 
-    top5 = clean["categories"].value_counts().head(5).index
-
-    trend = clean[clean["categories"].isin(top5)].copy()
-
-    trend["month"] = trend["timestamp"].dt.to_period("M").astype(str)
-
-    chart = trend.groupby(["month", "categories"]).size().unstack(fill_value=0)
-
-    fig = px.line(chart, markers=True)
+    fig = px.bar(
+        g,
+        x="Genre",
+        y="Count",
+        color="Genre",
+        color_discrete_sequence=[
+            "#4a6fa5", "#8b0000", "#d35400", "#1f1f1f",
+            "#a04000", "#5a2d0c", "#7a1f1f", "#2f2f2f"
+        ]
+    )
 
     fig.update_layout(
         xaxis=dict(showticklabels=False, showgrid=False),
         yaxis=dict(showgrid=False),
-        plot_bgcolor="white",
-        margin=dict(l=10, r=10, t=30, b=10)
+        plot_bgcolor="white"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+
+    # =================================================
+    # TREND SLIDER (NEW)
+    # =================================================
+    st.markdown('<div class="graph-frame">', unsafe_allow_html=True)
+    st.subheader("Genre Trends Over Time")
+
+    clean = books.dropna(subset=["timestamp", "categories"]).copy()
+
+    top5 = clean["categories"].value_counts().head(5).index
+    trend = clean[clean["categories"].isin(top5)].copy()
+
+    trend["month"] = trend["timestamp"].dt.to_period("M").astype(str)
+
+    min_month = trend["month"].min()
+    max_month = trend["month"].max()
+
+    month_range = st.slider(
+        "Select time period",
+        min_value=min_month,
+        max_value=max_month,
+        value=(min_month, max_month)
+    )
+
+    start_m, end_m = month_range
+
+    filtered = trend[
+        (trend["month"] >= start_m) &
+        (trend["month"] <= end_m)
+    ]
+
+    chart = filtered.groupby(["month", "categories"]).size().unstack(fill_value=0)
+
+    fig = px.line(chart, markers=True,
+                  color_discrete_sequence=[
+                      "#8b0000", "#d35400", "#1f1f1f", "#a04000", "#5a2d0c"
+                  ])
+
+    fig.update_layout(
+        xaxis=dict(showticklabels=False, showgrid=False),
+        yaxis=dict(showgrid=False),
+        plot_bgcolor="white"
     )
 
     st.plotly_chart(fig, use_container_width=True)
@@ -343,5 +311,6 @@ if st.session_state.page == "trending":
     st.dataframe(
         trending.reset_index(drop=True),
         use_container_width=True,
-        hide_index=True
+        hide_index=True,
+        height=800
     )
