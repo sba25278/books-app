@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import plotly.express as px
+import streamlit.components.v1 as components
 
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
@@ -100,33 +101,43 @@ ACCESSIBLE_COLOURS = [
 ]
 
 # =====================================================
-# TEXT-TO-SPEECH (SAFE STREAMLIT VERSION)
+# TEXT-TO-SPEECH CONTROLLER (FIXED + FULL CONTROL)
 # =====================================================
-import streamlit.components.v1 as components
+def audio_controls(text):
 
-def get_speech_text():
-    return (
-        "Book Analytics Dashboard. "
-        "You can select a book or genre to see recommendations. "
-        "Top genres and authors are shown as charts. "
-        "Reading trends over time show how genres change across years."
-    )
+    html_code = f"""
+    <div style="display:flex; gap:10px; margin:10px 0;">
+        <button onclick="startSpeech()">🔊 Read</button>
+        <button onclick="pauseSpeech()">⏸ Pause</button>
+        <button onclick="resumeSpeech()">▶ Resume</button>
+        <button onclick="stopSpeech()">⏹ Stop</button>
+    </div>
 
-audio_html = f"""
-<button onclick="speakText()">🔊 Read this page</button>
+    <script>
+    var utterance;
 
-<script>
-function speakText() {{
-    var msg = new SpeechSynthesisUtterance("{get_speech_text()}");
-    msg.rate = 0.9;
-    msg.pitch = 1;
-    msg.volume = 1;
-    window.speechSynthesis.speak(msg);
-}}
-</script>
-"""
+    function startSpeech() {{
+        window.speechSynthesis.cancel();
+        utterance = new SpeechSynthesisUtterance(`{text}`);
+        utterance.rate = 0.9;
+        window.speechSynthesis.speak(utterance);
+    }}
 
-components.html(audio_html, height=80)
+    function pauseSpeech() {{
+        window.speechSynthesis.pause();
+    }}
+
+    function resumeSpeech() {{
+        window.speechSynthesis.resume();
+    }}
+
+    function stopSpeech() {{
+        window.speechSynthesis.cancel();
+    }}
+    </script>
+    """
+
+    components.html(html_code, height=120)
 
 # =====================================================
 # RECOMMENDATIONS
@@ -141,8 +152,8 @@ def recommend_books(title, top_n=5):
     scores = list(enumerate(content_sim[idx]))
     scores = sorted(scores, key=lambda x: x[1], reverse=True)
 
-    seen = set()
     results = []
+    seen = set()
 
     for i, score in scores:
         book = df_cb.iloc[i]["book_title"]
@@ -155,7 +166,6 @@ def recommend_books(title, top_n=5):
             break
 
     return df_cb.iloc[results][["book_title", "rating", "categories"]].reset_index(drop=True)
-
 
 def recommend_by_genre(genre):
 
@@ -228,18 +238,25 @@ if st.session_state.page == "home":
     with col1:
         st.subheader("Book Recommendations")
         if selected_book:
-            show_cards(recommend_books(selected_book))
+            rec = recommend_books(selected_book)
+            show_cards(rec)
+
+            audio_controls(
+                "Content based recommendations. " +
+                rec.to_string(index=False)
+            )
 
     with col2:
         st.subheader("Genre Recommendations")
         if selected_genre:
-            show_cards(recommend_by_genre(selected_genre))
+            rec2 = recommend_by_genre(selected_genre)
+            show_cards(rec2)
 
     st.divider()
 
-    # =================================================
-    # SIDE-BY-SIDE GRAPHS
-    # =================================================
+    # =====================================================
+    # GRAPHS SIDE BY SIDE
+    # =====================================================
     col1, col2 = st.columns(2)
 
     with col1:
@@ -257,7 +274,7 @@ if st.session_state.page == "home":
         )
 
         fig.update_layout(
-            xaxis=dict(showticklabels=False, showgrid=False),
+            xaxis=dict(showgrid=False),
             yaxis=dict(showgrid=False),
             plot_bgcolor="white"
         )
@@ -279,7 +296,7 @@ if st.session_state.page == "home":
         )
 
         fig.update_layout(
-            xaxis=dict(showticklabels=False, showgrid=False),
+            xaxis=dict(showgrid=False),
             yaxis=dict(showgrid=False),
             plot_bgcolor="white"
         )
@@ -288,13 +305,12 @@ if st.session_state.page == "home":
 
     st.divider()
 
-    # =================================================
-    # TREND OVER TIME (YEAR + SLIDER FIX)
-    # =================================================
+    # =====================================================
+    # TRENDING OVER TIME + AUDIO
+    # =====================================================
     st.subheader("Reading Trends Over Time")
 
     clean = books.dropna(subset=["timestamp", "categories"]).copy()
-
     clean["year"] = clean["timestamp"].dt.year
 
     top5 = clean["categories"].value_counts().head(5).index
@@ -312,10 +328,7 @@ if st.session_state.page == "home":
 
     start_year, end_year = year_range
 
-    trend = trend[
-        (trend["year"] >= start_year) &
-        (trend["year"] <= end_year)
-    ]
+    trend = trend[(trend["year"] >= start_year) & (trend["year"] <= end_year)]
 
     chart = trend.groupby(["year", "categories"]).size().unstack(fill_value=0)
 
@@ -333,6 +346,10 @@ if st.session_state.page == "home":
 
     st.plotly_chart(fig, use_container_width=True)
 
+    audio_controls(
+        "Reading trends over time. " + chart.to_string()
+    )
+
 # =====================================================
 # TRENDING PAGE
 # =====================================================
@@ -345,4 +362,9 @@ if st.session_state.page == "trending":
         use_container_width=True,
         hide_index=True,
         height=900
+    )
+
+    audio_controls(
+        "Top 100 trending books. " +
+        trending.head(30).to_string(index=False)
     )
