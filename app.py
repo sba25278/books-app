@@ -432,7 +432,7 @@ if st.session_state.page == "trending":
     }).sort_values("Avg Price", ascending=False).head(5)
 
     # =================================================
-    # CHARTS (COLOURS RESTORED)
+    # CHARTS (WITH TITLES + COLOURS)
     # =================================================
     col1, col2 = st.columns(2)
 
@@ -442,12 +442,13 @@ if st.session_state.page == "trending":
             x="Genre",
             y="Count",
             color="Genre",
-            color_discrete_sequence=ACCESSIBLE_COLOURS
+            color_discrete_sequence=ACCESSIBLE_COLOURS,
+            title="Top 5 Genres by Frequency"
         )
 
         fig1.update_layout(
-            xaxis=dict(showticklabels=False, showgrid=False, title=""),
-            yaxis=dict(showgrid=False),
+            xaxis=dict(showticklabels=False, showgrid=False, title="Genre"),
+            yaxis=dict(showgrid=False, title="Number of Books"),
             plot_bgcolor="white"
         )
 
@@ -459,19 +460,20 @@ if st.session_state.page == "trending":
             x="Genre",
             y="Avg Price",
             color="Genre",
-            color_discrete_sequence=ACCESSIBLE_COLOURS
+            color_discrete_sequence=ACCESSIBLE_COLOURS,
+            title="Average Book Price by Genre"
         )
 
         fig2.update_layout(
-            xaxis=dict(showticklabels=False, showgrid=False, title=""),
-            yaxis=dict(showgrid=False),
+            xaxis=dict(showticklabels=False, showgrid=False, title="Genre"),
+            yaxis=dict(showgrid=False, title="Average Price (€)"),
             plot_bgcolor="white"
         )
 
         st.plotly_chart(fig2, use_container_width=True)
 
     # =================================================
-    # TABLE (CLEAN + SIMPLE)
+    # TABLE
     # =================================================
     df_display = df.copy()
 
