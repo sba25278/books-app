@@ -384,7 +384,7 @@ if st.session_state.page == "trending":
     df["book price"] = pd.to_numeric(df["book price"], errors="coerce")
 
     # =================================================
-    # CLEAN + FLATTEN GENRES (SIMPLE + SAFE)
+    # CLEAN + FLATTEN GENRES
     # =================================================
     genre_counter = Counter()
     genre_price_map = {}
@@ -394,7 +394,6 @@ if st.session_state.page == "trending":
         raw = row["genre"]
         price = row["book price"]
 
-        # always convert to list
         if isinstance(raw, list):
             genres = raw
         else:
@@ -402,7 +401,6 @@ if st.session_state.page == "trending":
 
         for g in genres:
 
-            # FIX &amp; + cleanup
             g = html.unescape(str(g)).strip().title()
 
             if not g or g in ["And", "&"]:
@@ -434,24 +432,46 @@ if st.session_state.page == "trending":
     }).sort_values("Avg Price", ascending=False).head(5)
 
     # =================================================
-    # CHARTS
+    # CHARTS (COLOURS RESTORED)
     # =================================================
     col1, col2 = st.columns(2)
 
     with col1:
-        st.plotly_chart(
-            px.bar(top_genres, x="Genre", y="Count", color="Genre"),
-            use_container_width=True
+        fig1 = px.bar(
+            top_genres,
+            x="Genre",
+            y="Count",
+            color="Genre",
+            color_discrete_sequence=ACCESSIBLE_COLOURS
         )
+
+        fig1.update_layout(
+            xaxis=dict(showticklabels=False, showgrid=False, title=""),
+            yaxis=dict(showgrid=False),
+            plot_bgcolor="white"
+        )
+
+        st.plotly_chart(fig1, use_container_width=True)
 
     with col2:
-        st.plotly_chart(
-            px.bar(avg_price, x="Genre", y="Avg Price", color="Genre"),
-            use_container_width=True
+        fig2 = px.bar(
+            avg_price,
+            x="Genre",
+            y="Avg Price",
+            color="Genre",
+            color_discrete_sequence=ACCESSIBLE_COLOURS
         )
 
+        fig2.update_layout(
+            xaxis=dict(showticklabels=False, showgrid=False, title=""),
+            yaxis=dict(showgrid=False),
+            plot_bgcolor="white"
+        )
+
+        st.plotly_chart(fig2, use_container_width=True)
+
     # =================================================
-    # TABLE (NO DUPLICATES, NO EXTRA COLUMNS)
+    # TABLE (CLEAN + SIMPLE)
     # =================================================
     df_display = df.copy()
 
