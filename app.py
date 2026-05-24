@@ -14,7 +14,7 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("Book Analytics Dashboard")
+st.title("📚 Book Analytics Dashboard")
 
 # =====================================================
 # ACCESSIBLE THEME
@@ -37,20 +37,6 @@ h1, h2, h3 {
     margin-bottom: 10px;
     border: 1px solid #e6d9c8;
     box-shadow: 1px 1px 6px rgba(0,0,0,0.05);
-}
-
-/* REAL FRAME STYLE (works with containers) */
-.block-container {
-    padding-top: 1rem;
-}
-
-div[data-testid="stVerticalBlock"] {
-    background-color: white;
-    padding: 15px;
-    border-radius: 12px;
-    border: 1px solid #e6d9c8;
-    box-shadow: 2px 2px 10px rgba(0,0,0,0.06);
-    margin-bottom: 20px;
 }
 
 div.stButton > button {
@@ -97,16 +83,62 @@ def build_model(df):
 
     return sim, book_index, df
 
-
 content_sim, book_idx, df_cb = build_model(books)
 
 # =====================================================
-# COLOURS (65+ FRIENDLY)
+# 65+ FRIENDLY COLOURS (8 only)
+# warm + high contrast + readable
 # =====================================================
 ACCESSIBLE_COLOURS = [
-    "#c94c4c", "#e07a5f", "#f2a65a", "#6a994e",
-    "#8b5e3c", "#c06c84", "#8e7cc3", "#2f2f2f"
+    "#c94c4c",  # red
+    "#e07a5f",  # coral
+    "#f2a65a",  # warm orange
+    "#6a994e",  # green
+    "#8b5e3c",  # brown
+    "#c06c84",  # warm pink
+    "#8e7cc3",  # purple
+    "#2f2f2f"   # dark grey
 ]
+
+# =====================================================
+# RECOMMENDATIONS
+# =====================================================
+def recommend_books(title, top_n=5):
+
+    if title not in book_idx:
+        return pd.DataFrame()
+
+    idx = book_idx[title]
+
+    scores = list(enumerate(content_sim[idx]))
+    scores = sorted(scores, key=lambda x: x[1], reverse=True)
+
+    seen = set()
+    results = []
+
+    for i, score in scores:
+        book = df_cb.iloc[i]["book_title"]
+
+        if book != title and book not in seen:
+            seen.add(book)
+            results.append(i)
+
+        if len(results) == top_n:
+            break
+
+    return df_cb.iloc[results][["book_title", "rating", "categories"]].reset_index(drop=True)
+
+
+def recommend_by_genre(genre):
+
+    df = books[
+        books["categories"].astype(str).str.contains(genre, case=False, na=False)
+    ]
+
+    df = df.drop_duplicates(subset=["book_title"])
+    df = df.sort_values("rating", ascending=False).head(5)
+
+    return df[["book_title", "rating", "categories"]].reset_index(drop=True)
 
 # =====================================================
 # NAVIGATION
@@ -129,7 +161,7 @@ if trending_btn:
     st.session_state.page = "trending"
 
 # =====================================================
-# CARDS
+# CARD DISPLAY
 # =====================================================
 def show_cards(df):
     for _, row in df.iterrows():
@@ -178,13 +210,11 @@ if st.session_state.page == "home":
     st.divider()
 
     # =================================================
-    # TOP GENRES
+    # TOP GENRES (FRAME FIXED)
     # =================================================
-    col1, col2 = st.columns(2)
+    st.subheader("Top Genres")
 
-    with col1:
-        st.subheader("Top Genres")
-
+    with st.container():
         g = books["categories"].value_counts().head(8).reset_index()
         g.columns = ["Genre", "Count"]
 
@@ -204,9 +234,14 @@ if st.session_state.page == "home":
 
         st.plotly_chart(fig, use_container_width=True)
 
-    with col2:
-        st.subheader("Top Authors")
+    st.divider()
 
+    # =================================================
+    # TOP AUTHORS
+    # =================================================
+    st.subheader("Top Authors")
+
+    with st.container():
         a = books["store"].value_counts().head(8).reset_index()
         a.columns = ["Author", "Count"]
 
@@ -229,7 +264,7 @@ if st.session_state.page == "home":
     st.divider()
 
     # =================================================
-    # TREND OVER TIME (FIXED FRAME)
+    # TREND OVER TIME
     # =================================================
     st.subheader("Reading Trends Over Time")
 
@@ -242,7 +277,11 @@ if st.session_state.page == "home":
 
     chart = trend.groupby(["month", "categories"]).size().unstack(fill_value=0)
 
-    fig = px.line(chart, markers=True, color_discrete_sequence=ACCESSIBLE_COLOURS)
+    fig = px.line(
+        chart,
+        markers=True,
+        color_discrete_sequence=ACCESSIBLE_COLOURS
+    )
 
     fig.update_layout(
         xaxis=dict(showticklabels=False, showgrid=False),
