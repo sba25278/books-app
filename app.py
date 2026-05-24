@@ -384,7 +384,7 @@ if st.session_state.page == "trending":
     trending["book price"] = pd.to_numeric(trending["book price"], errors="coerce")
 
     # =================================================
-    # CREATE SPLIT FROM ORIGINAL genre COLUMN (IMPORTANT FIX)
+    # CREATE SPLIT FROM ORIGINAL genre COLUMN
     # =================================================
     trending["genre_split"] = (
         trending["genre"]
@@ -401,16 +401,20 @@ if st.session_state.page == "trending":
     trending_exploded = trending_exploded.dropna(subset=["genre_split"])
     trending_exploded = trending_exploded[trending_exploded["genre_split"] != ""]
 
-    # remove duplicates (prevents price inflation bug)
+    # =================================================
+    # CRITICAL FIX: REMOVE DUPLICATE BOOK-GENRE PAIRS
+    # =================================================
     trending_exploded = trending_exploded.drop_duplicates(
         subset=["book title", "genre_split"]
     )
 
     # =================================================
-    # AVG PRICE BY GENRE (FIXED)
+    # AVG PRICE BY GENRE (FIXED + STABLE)
     # =================================================
+    trend_price = trending_exploded.copy()
+
     price_by_genre = (
-        trending_exploded
+        trend_price
         .groupby("genre_split", as_index=False)["book price"]
         .mean()
         .sort_values("book price", ascending=False)
@@ -441,9 +445,10 @@ if st.session_state.page == "trending":
     # =================================================
     trending_display = trending.copy()
 
+    # safety: prevent duplicate columns (Streamlit crash fix)
     trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
 
-    # create readable genre column
+    # build readable genre column
     trending_display["Genre"] = trending_display["genre_split"].apply(
         lambda x: ", ".join(x) if isinstance(x, list) else ""
     )
@@ -451,12 +456,12 @@ if st.session_state.page == "trending":
     # column ordering
     cols = trending_display.columns.tolist()
 
-    # remove duplicates safely
+    # remove raw + duplicate genre columns safely
     for col in ["genre", "Genre"]:
         if col in cols:
             cols.remove(col)
 
-    # insert after book title
+    # insert AFTER book title
     insert_pos = cols.index("book title") + 1
     cols.insert(insert_pos, "Genre")
 
