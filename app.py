@@ -364,8 +364,6 @@ if st.session_state.page == "home":
 
 # Top 100 books trending in 2023 according to nyt
 # try to find more updated version if possible?
-# Top 100 books trending in 2023 according to nyt
-# try to find more updated version if possible?
 if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
@@ -376,19 +374,20 @@ if st.session_state.page == "trending":
     )
 
     # =================================================
-    # CLEAN GENRE (FIRST WORD ONLY FOR BETTER GROUPING)
+    # MULTI-LABEL GENRE PARSING
     # =================================================
     trending = trending.copy()
-    trending["genre_clean"] = trending["genre"].astype(str).str.split().str[0]
+    trending["genre_split"] = trending["genre"].astype(str).str.split()
+    trending_exploded = trending.explode("genre_split")
 
     st.subheader("Trending Insights")
 
     # =================================================
-    # PRICE BY CLEANED GENRE
+    # AVG PRICE BY GENRE
     # =================================================
     price_by_genre = (
-        trending
-        .groupby("genre_clean")["book price"]
+        trending_exploded
+        .groupby("genre_split")["book price"]
         .mean()
         .sort_values(ascending=False)
         .head(10)
