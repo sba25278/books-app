@@ -4,6 +4,4 @@ numpy
 scikit-learn
 mlxtend
 plotly
-plotly.express
 pyttsx3
-html
