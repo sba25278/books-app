@@ -370,22 +370,14 @@ if st.session_state.page == "trending":
 
     # 🔊 PAGE OVERVIEW AUDIO
     audio_controls(
-        "Top 100 trending books page. This table shows the most popular books currently trending."
+        "Top 100 trending books page. This chart shows the topp 5 genres in 2023. This table shows the most popular books currently trending."
     )
 
-    st.subheader("Trending Insights")
-
-    # =================================================
-    # CLEAN DATA + MULTI-LABEL PARSING (ROBUST)
-    # =================================================
+    st.subheader("Top 100 books in 2023")
+=
     trending = trending.copy()
-
-    # ensure numeric price (safe even if not used in chart)
     trending["book price"] = pd.to_numeric(trending["book price"], errors="coerce")
 
-    # =================================================
-    # CLEAN + SPLIT GENRES (FIXED MULTI-LABEL HANDLING)
-    # =================================================
     trending["genre_split"] = (
         trending["genre"]
         .astype(str)
@@ -398,7 +390,6 @@ if st.session_state.page == "trending":
 
     trending_exploded = trending.explode("genre_split")
 
-    # clean whitespace + remove junk
     trending_exploded["genre_split"] = trending_exploded["genre_split"].str.strip()
 
     trending_exploded = trending_exploded[
@@ -407,14 +398,10 @@ if st.session_state.page == "trending":
         (~trending_exploded["genre_split"].isin(["and", "&"]))
     ]
 
-    # remove duplicate book-genre pairs (prevents weighting bias)
     trending_exploded = trending_exploded.drop_duplicates(
         subset=["book title", "genre_split"]
     )
 
-    # =================================================
-    # TOP 5 GENRES (FIXED + SIMPLE)
-    # =================================================
     top_genres = (
         trending_exploded["genre_split"]
         .value_counts()
@@ -441,21 +428,11 @@ if st.session_state.page == "trending":
 
     st.plotly_chart(fig2, use_container_width=True)
 
-    # =================================================
-    # TABLE (CLEAN + SAFE + NO DUPLICATES)
-    # =================================================
+    
     trending_display = trending.copy()
-
-    # prevent duplicate columns crashing Streamlit
     trending_display = trending_display.loc[:, ~trending_display.columns.duplicated()].copy()
-
-    # ensure genre_split exists in base table (important fix)
     trending_display["genre_split"] = trending_display["genre"]
-
-    # build readable genre column
     trending_display["Genre"] = trending_display["genre_split"].astype(str)
-
-    # reorder columns: insert Genre after book title
     cols = trending_display.columns.tolist()
 
     for col in ["Genre"]:
