@@ -102,6 +102,8 @@ ACCESSIBLE_COLOURS = [
 # =====================================================
 # TEXT-TO-SPEECH (SAFE STREAMLIT VERSION)
 # =====================================================
+import streamlit.components.v1 as components
+
 def get_speech_text():
     return (
         "Book Analytics Dashboard. "
@@ -110,27 +112,21 @@ def get_speech_text():
         "Reading trends over time show how genres change across years."
     )
 
-st.markdown("""
+audio_html = f"""
+<button onclick="speakText()">🔊 Read this page</button>
+
 <script>
-function speakText(text) {
-    const msg = new SpeechSynthesisUtterance(text);
+function speakText() {{
+    var msg = new SpeechSynthesisUtterance("{get_speech_text()}");
     msg.rate = 0.9;
     msg.pitch = 1;
     msg.volume = 1;
     window.speechSynthesis.speak(msg);
-}
+}}
 </script>
-""", unsafe_allow_html=True)
+"""
 
-if st.button("🔊 Read this page"):
-    st.markdown(
-        f"""
-        <script>
-            speakText("{get_speech_text()}");
-        </script>
-        """,
-        unsafe_allow_html=True
-    )
+components.html(audio_html, height=80)
 
 # =====================================================
 # RECOMMENDATIONS
