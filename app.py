@@ -208,9 +208,9 @@ if st.session_state.page == "home":
 
     st.divider()
 
-    # =================================================
-    # SIDE-BY-SIDE GRAPHS (FIXED)
-    # =================================================
+    # =====================================================
+    # SIDE-BY-SIDE GRAPHS
+    # =====================================================
     col1, col2 = st.columns(2)
 
     with col1:
@@ -259,19 +259,38 @@ if st.session_state.page == "home":
 
     st.divider()
 
-    # =================================================
-    # TREND OVER TIME
-    # =================================================
+    # =====================================================
+    # TREND OVER TIME (FIXED: YEARS + SLIDER)
+    # =====================================================
     st.subheader("Reading Trends Over Time")
 
     clean = books.dropna(subset=["timestamp", "categories"]).copy()
 
+    # convert to YEAR instead of month
+    clean["year"] = clean["timestamp"].dt.year
+
     top5 = clean["categories"].value_counts().head(5).index
     trend = clean[clean["categories"].isin(top5)].copy()
 
-    trend["month"] = trend["timestamp"].dt.to_period("M").astype(str)
+    # slider
+    min_year = int(clean["year"].min())
+    max_year = int(clean["year"].max())
 
-    chart = trend.groupby(["month", "categories"]).size().unstack(fill_value=0)
+    year_range = st.slider(
+        "Select year range",
+        min_value=min_year,
+        max_value=max_year,
+        value=(min_year, max_year)
+    )
+
+    start_year, end_year = year_range
+
+    trend = trend[
+        (trend["year"] >= start_year) &
+        (trend["year"] <= end_year)
+    ]
+
+    chart = trend.groupby(["year", "categories"]).size().unstack(fill_value=0)
 
     fig = px.line(
         chart,
@@ -280,7 +299,7 @@ if st.session_state.page == "home":
     )
 
     fig.update_layout(
-        xaxis=dict(showticklabels=False, showgrid=False),
+        xaxis=dict(showgrid=False, title="Year"),
         yaxis=dict(showgrid=False),
         plot_bgcolor="white"
     )
