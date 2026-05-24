@@ -19,9 +19,9 @@ st.set_page_config(
 st.title("Book Analytics Dashboard")
 
 
-# =====================================================
-# ACCESSIBLE THEME
-# =====================================================
+# Accessible theme
+# https://dashboards.mysidewalk.com/style-guide-for-dashboards/bar-charts-old
+# https://medium.com/@verinamk/streamlit-for-beginners-build-your-first-dashboard-58b764a62a2d
 st.markdown("""
 <style>
 
@@ -55,9 +55,10 @@ div.stButton > button {
 """, unsafe_allow_html=True)
 
 
-# =====================================================
-# LOAD DATA
-# =====================================================
+
+# big app + lots of data= using @ stops very long load tim
+# https://docs.streamlit.io/develop/concepts/architecture/caching
+# https://medium.com/@heyamit10/benefits-of-using-streamlit-cache-for-faster-apps-006632d673ef
 @st.cache_data
 def load_data():
     books = pd.read_csv("books_clean.csv")
@@ -67,10 +68,6 @@ def load_data():
 
 books, trending = load_data()
 
-
-# =====================================================
-# MODEL
-# =====================================================
 @st.cache_data
 def build_model(df):
     df = df.dropna(subset=["content", "book_title"]).copy()
@@ -91,9 +88,9 @@ def build_model(df):
 content_sim, book_idx, df_cb = build_model(books)
 
 
-# =====================================================
-# COLOURS
-# =====================================================
+# https://davidmathlogic.com/colorblind/#%23D81B60-%231E88E5-%23FFC107-%23004D40
+# https://dashboards.mysidewalk.com/style-guide-for-dashboards/color
+
 ACCESSIBLE_COLOURS = [
     "#c94c4c",
     "#e07a5f",
@@ -106,9 +103,8 @@ ACCESSIBLE_COLOURS = [
 ]
 
 
-# =====================================================
-# TEXT-TO-SPEECH CONTROLS (FULL)
-# =====================================================
+#https://discuss.streamlit.io/t/text-to-speech-in-streamlt-cloud/66848
+# https://medium.com/@pavlo_sydorenko/add-text-to-speech-to-your-web-app-with-5-lines-of-python-code-8c4707f2dc93
 def audio_controls(text):
 
     html_code = f"""
@@ -146,9 +142,9 @@ def audio_controls(text):
     components.html(html_code, height=120)
 
 
-# =====================================================
-# RECOMMENDATIONS FUNCTION (CONTENT BASED)
-# =====================================================
+# recs : book and genre based
+# using content based due to data sparsity
+# Based on M. Iqbals Lectures
 def recommend_books(title, top_n=5):
 
     if title not in book_idx:
@@ -175,9 +171,6 @@ def recommend_books(title, top_n=5):
     return df_cb.iloc[results][["book_title", "rating", "categories"]].reset_index(drop=True)
 
 
-# =====================================================
-# GENRE RECOMMENDATION FUNCTION
-# =====================================================
 def recommend_by_genre(genre):
 
     df = books[
@@ -190,9 +183,7 @@ def recommend_by_genre(genre):
     return df[["book_title", "rating", "categories"]].reset_index(drop=True)
 
 
-# =====================================================
-# NAVIGATION
-# =====================================================
+# buttons for navif=gation are easier and more intuitive for old people
 col1, col2 = st.columns(2)
 
 with col1:
@@ -211,9 +202,11 @@ if trending_btn:
     st.session_state.page = "trending"
 
 
-# =====================================================
-# CARD DISPLAY FUNCTION
-# =====================================================
+# card display looks cleaner
+# https://discuss.streamlit.io/t/new-component-streamlit-product-card/113494
+# Also easier to read according to Gran Joan
+#            - rem make text slightly less contrast for eye fatigue
+
 def show_cards(df):
     for _, row in df.iterrows():
         st.markdown(f"""
@@ -225,9 +218,7 @@ def show_cards(df):
         """, unsafe_allow_html=True)
 
 
-# =====================================================
-# HOME PAGE
-# =====================================================
+# home
 if st.session_state.page == "home":
 
     st.header("Overview")
@@ -236,7 +227,7 @@ if st.session_state.page == "home":
     # 🔊 PAGE OVERVIEW AUDIO
     audio_controls(
         "Book analytics dashboard home page. "
-        "This page includes book recommendations, genre recommendations, top genres, top authors, and reading trends over time."
+        "This page includes book recommendations, genre recommendations, top genres of all time, top authors of all time, and reading trends over time."
     )
 
     col1, col2 = st.columns(2)
@@ -278,9 +269,8 @@ if st.session_state.page == "home":
     st.divider()
 
 
-    # =================================================
-    # TOP GENRES + AUTHORS
-    # =================================================
+    #top genre and author graphs side by side = can zoom for bigger
+    # colours are best pastel and low contrast, minimal blues and greens
     col1, col2 = st.columns(2)
 
     with col1:
@@ -330,9 +320,9 @@ if st.session_state.page == "home":
     st.divider()
 
 
-    # =================================================
-    # TREND OVER TIME
-    # =================================================
+    # More complex data but allows more tech savvy 65 year olds to investigate more
+    # Plus like most 65 year olds have dealt with tech these days
+    
     st.subheader("Reading Trends Over Time")
 
     clean = books.dropna(subset=["timestamp", "categories"]).copy()
@@ -372,9 +362,8 @@ if st.session_state.page == "home":
     st.plotly_chart(fig, use_container_width=True)
 
 
-# =====================================================
-# TRENDING PAGE
-# =====================================================
+# Top 100 books trending in 2023 according to nyt
+# try to find more updated version if possible?
 if st.session_state.page == "trending":
 
     st.header("Top 100 Trending Books")
@@ -384,6 +373,69 @@ if st.session_state.page == "trending":
         "Top 100 trending books page. This table shows the most popular books currently trending."
     )
 
+    st.subheader("Trending Insights")
+
+    # rating
+    genre_rating = (
+        trending
+        .groupby("genre")["rating"]
+        .mean()
+        .sort_values(ascending=False)
+        .head(10)
+        .reset_index()
+    )
+
+    genre_rating.columns = ["Genre", "Avg Rating"]
+
+    fig1 = px.bar(
+        genre_rating,
+        x="Genre",
+        y="Avg Rating",
+        color="Genre",
+        color_discrete_sequence=ACCESSIBLE_COLOURS
+    )
+
+    fig1.update_layout(
+        xaxis=dict(showticklabels=False, showgrid=False, title=""),
+        yaxis=dict(showgrid=False),
+        plot_bgcolor="white",
+        margin=dict(l=10, r=10, t=20, b=10)
+    )
+
+    st.plotly_chart(fig1, use_container_width=True)
+
+
+    #price
+    price_by_genre = (
+        trending
+        .groupby("genre")["book price"]
+        .mean()
+        .sort_values(ascending=False)
+        .head(10)
+        .reset_index()
+    )
+
+    price_by_genre.columns = ["Genre", "Avg Price"]
+
+    fig2 = px.bar(
+        price_by_genre,
+        x="Genre",
+        y="Avg Price",
+        color="Genre",
+        color_discrete_sequence=ACCESSIBLE_COLOURS
+    )
+
+    fig2.update_layout(
+        xaxis=dict(showticklabels=False, showgrid=False, title=""),
+        yaxis=dict(showgrid=False),
+        plot_bgcolor="white",
+        margin=dict(l=10, r=10, t=20, b=10)
+    )
+
+    st.plotly_chart(fig2, use_container_width=True)
+
+
+    # Table
     st.dataframe(
         trending.reset_index(drop=True),
         use_container_width=True,
